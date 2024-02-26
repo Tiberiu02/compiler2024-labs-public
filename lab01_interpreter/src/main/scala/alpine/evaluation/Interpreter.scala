@@ -101,17 +101,27 @@ final class Interpreter(
         throw Panic(s"unexpected qualification of type '${q.dynamicType}'")
 
   def visitApplication(n: ast.Application)(using context: Context): Value =
-    ???
+    val funcNode = n.function.visit(this) // function node in AST
+    val argValues = n.arguments.map(_.visit(this)) // argument values -> CBV
+    call(funcNode, argValues)
 
   def visitPrefixApplication(n: ast.PrefixApplication)(using context: Context): Value =
-    ???
+    val argument = n.argument.visit(this) // evaluate argument
+    val funcNode = n.function.visit(this) // get funcNode
+    call(funcNode, List(argument))        // Call requires a `Seq type, hence `List`
 
   def visitInfixApplication(n: ast.InfixApplication)(using context: Context): Value =
-    ???
+    // visit left-hand and right-hand sides of infix operator
+    val leftValue = n.lhs.visit(this)
+    val rightValue = n.rhs.visit(this)
+    // get function node from AST
+    val funcNode = n.function.visit(this)
+    // call on function node and sequence (Array) of values 
+    call(funcNode, List(leftValue, rightValue))
 
   def visitConditional(n: ast.Conditional)(using context: Context): Value =
     val condition = n.condition.visit(this)
-    val Value.Builtin(value: Boolean, _) = condition : @unchecked
+    val Value.Builtin(value: Boolean, _) = condition : @unchecked // magic
     if value then n.successCase.visit(this) else n.failureCase.visit(this) 
 
   def visitMatch(n: ast.Match)(using context: Context): Value =
