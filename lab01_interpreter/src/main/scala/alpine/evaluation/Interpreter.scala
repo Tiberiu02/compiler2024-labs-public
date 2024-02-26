@@ -12,6 +12,7 @@ import java.nio.charset.StandardCharsets.UTF_8
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.util.control.NoStackTrace
+import alpine.symbols.Type.Bool
 
 /** The evaluation of an Alpine program.
  *
@@ -82,7 +83,12 @@ final class Interpreter(
     Value.Builtin(n.value, Type.String)
 
   def visitRecord(n: ast.Record)(using context: Context): Value =
-    ???
+    val fieldValues = n.fields.map(_.visit(this))
+    val fieldTypes = fieldValues.map(_.dynamicType)
+    val fieldLabels = n.fields.map(_.label)
+    val labeledTypes = (fieldLabels zip fieldTypes).map((l, t) => Type.Labeled(l, t))
+    val dynamicType = Type.Record(n.identifier, labeledTypes)
+    Value.Record(n.identifier, fieldValues, dynamicType)
 
   def visitSelection(n: ast.Selection)(using context: Context): Value =
     n.qualification.visit(this) match
@@ -104,7 +110,9 @@ final class Interpreter(
     ???
 
   def visitConditional(n: ast.Conditional)(using context: Context): Value =
-    ???
+    val condition = n.condition.visit(this)
+    val Value.Builtin(value: Boolean, _) = condition : @unchecked
+    if value then n.successCase.visit(this) else n.failureCase.visit(this) 
 
   def visitMatch(n: ast.Match)(using context: Context): Value =
     ???
@@ -119,8 +127,7 @@ final class Interpreter(
     ???
 
   def visitParenthesizedExpression(n: ast.ParenthesizedExpression)(using context: Context): Value =
-    // TODO
-    ???
+    n.inner.visit(this)
 
   def visitAscribedExpression(n: ast.AscribedExpression)(using context: Context): Value =
     ???
