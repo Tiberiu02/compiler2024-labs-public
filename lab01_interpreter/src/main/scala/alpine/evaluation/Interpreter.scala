@@ -203,9 +203,14 @@ final class Interpreter(
   private def call(f: Value, a: Seq[Value])(using context: Context): Value =
     f match
       case Value.Function(d, _) =>
+        val funcInputs = d.inputs
         ???
 
       case l: Value.Lambda =>
+        l.captures map { capture =>
+          // context = context.pushing(capture) // something like this, not sure
+          ???
+        }
         ???
 
       case Value.BuiltinFunction("exit", _) =>
