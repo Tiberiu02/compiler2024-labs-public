@@ -125,7 +125,10 @@ final class Interpreter(
     if value then n.successCase.visit(this) else n.failureCase.visit(this) 
 
   def visitMatch(n: ast.Match)(using context: Context): Value =
-    ???
+    val scrutineeValue = n.scrutinee.visit(this)
+    val matchingCase = n.cases.filter(c => matches(scrutineeValue, c.pattern).exists(_ => true)).head // matchingCase Could be Nil !
+    val bindings = matches(scrutineeValue, matchingCase.pattern).get
+    matchingCase.body.visit(this)(using context.pushing(bindings))
 
   def visitMatchCase(n: ast.Match.Case)(using context: Context): Value =
     unexpectedVisit(n)
