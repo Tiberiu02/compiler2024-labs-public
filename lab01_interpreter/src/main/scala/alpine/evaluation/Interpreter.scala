@@ -103,8 +103,8 @@ final class Interpreter(
 
   def visitApplication(n: ast.Application)(using context: Context): Value =
     val funcNode = n.function.visit(this) // function node in AST
-    val argValues = n.arguments.map(_.visit(this)) // argument values -> CBV
-    call(funcNode, argValues)
+    val args = n.arguments.map(_.value.visit(this)) // visit argument expressions
+    call(funcNode, args)
 
   def visitPrefixApplication(n: ast.PrefixApplication)(using context: Context): Value =
     val argument = n.argument.visit(this) // evaluate argument
@@ -207,10 +207,20 @@ final class Interpreter(
   private def call(f: Value, a: Seq[Value])(using context: Context): Value =
     f match
       case Value.Function(d, _) =>
-        ???
+        // get input names
+        val inputNames = d.inputs.map(_.nameDeclared)
+        // create a frame from input names and input values `a`
+        val newFrame: Interpreter.Frame = inputNames.zip(a).toMap
+        // visit the function body using the next context
+        d.body.visit(this)(using context.pushing(newFrame))
 
       case l: Value.Lambda =>
-        ???
+        // get input names
+        val inputNames = l.inputs.map(_.nameDeclared)
+        // create a frame from input names and input values `a` and captures
+        val newFrame: Interpreter.Frame = inputNames.zip(a).toMap ++ l.captures
+        // we visit the body with the updated context
+        l.body.visit(this)(using context.pushing(newFrame))
 
       case Value.BuiltinFunction("exit", _) =>
         val Value.Builtin(status, _) = a.head : @unchecked
