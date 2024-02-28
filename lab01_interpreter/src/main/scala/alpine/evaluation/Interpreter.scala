@@ -13,6 +13,7 @@ import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.util.control.NoStackTrace
 import alpine.symbols.Type.Bool
+import scala.collection.View.Empty
 
 /** The evaluation of an Alpine program.
  *
@@ -325,7 +326,7 @@ final class Interpreter(
   private def matchesWildcard(
       scrutinee: Value, pattern: ast.Wildcard
   )(using context: Context): Option[Interpreter.Frame] =
-    ???
+    Some(Map.empty[symbols.Name, Value])
 
   /** Returns a map from binding in `pattern` to its value iff `scrutinee` matches `pattern`.  */
   private def matchesValue(
