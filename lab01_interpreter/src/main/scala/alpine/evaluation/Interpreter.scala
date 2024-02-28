@@ -102,8 +102,9 @@ final class Interpreter(
 
   def visitApplication(n: ast.Application)(using context: Context): Value =
     val funcNode = n.function.visit(this) // function node in AST
-    val argValues = n.arguments.map(_.visit(this)) // argument values -> CBV
-    call(funcNode, argValues)
+    // val argValues = n.arguments.map(_.visit(this)) // argument values -> CBV
+    val args = n.arguments.map(_.value.visit(this))
+    call(funcNode, args)
 
   def visitPrefixApplication(n: ast.PrefixApplication)(using context: Context): Value =
     val argument = n.argument.visit(this) // evaluate argument
