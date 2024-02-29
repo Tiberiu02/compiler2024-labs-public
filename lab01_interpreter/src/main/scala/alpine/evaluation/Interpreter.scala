@@ -84,7 +84,7 @@ final class Interpreter(
     Value.Builtin(n.value, Type.String)
 
   def visitRecord(n: ast.Record)(using context: Context): Value =
-    val fieldValues = n.fields.map(_.visit(this))
+    val fieldValues = n.fields.map(_.value.visit(this))
     val fieldTypes = fieldValues.map(_.dynamicType)
     val fieldLabels = n.fields.map(_.label)
     val labeledTypes = (fieldLabels zip fieldTypes).map((l, t) => Type.Labeled(l, t))
