@@ -377,7 +377,18 @@ final class Interpreter(
        patternTypeRecord match
         case None => None
         case Some(ptr) =>
-          if ptr.structurallyMatches(s.dynamicType) then Some((s.fields zip pattern.fields).map((v, p) => matches(v,p.value).get).reduce(_++_)) else None // get could be None !!
+          if ptr.structurallyMatches(s.dynamicType) && s.fields.length == pattern.fields.length then 
+            var FrameAcc = Map.empty[symbols.Name, Value]
+            var flag = true 
+            (s.fields zip pattern.fields).foreach {
+              case (v, p) =>
+                matches(v, p.value) match {
+                  case Some(m) => FrameAcc = FrameAcc ++ m
+                  case _       => flag = false
+                }
+            }
+            if flag then Some(FrameAcc) else None
+          else None // get could be None !!
        
       case _ => None
 
