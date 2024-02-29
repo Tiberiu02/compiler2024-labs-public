@@ -363,7 +363,10 @@ final class Interpreter(
   private def matchesBinding(
       scrutinee: Value, pattern: ast.Binding
   )(using context: Context): Option[Interpreter.Frame] =
-    ???
+    val bindingValue = pattern.visit(this)
+    val frame = Map.from(List((symbols.Name(None, pattern.identifier), bindingValue)))
+    if (bindingValue == scrutinee) && (pattern.ascription.get == scrutinee.dynamicType) then Some(frame) else None
+
 
 end Interpreter
 
