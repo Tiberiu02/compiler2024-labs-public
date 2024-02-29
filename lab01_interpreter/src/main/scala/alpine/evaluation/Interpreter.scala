@@ -14,6 +14,13 @@ import scala.collection.mutable
 import scala.util.control.NoStackTrace
 import alpine.symbols.Type.Bool
 import scala.collection.View.Empty
+import alpine.ast.Tree.walkRoots
+import alpine.evaluation.Value.BuiltinFunction
+import alpine.evaluation.Value.Builtin
+import alpine.evaluation.Value.Record
+import alpine.evaluation.Value.Lambda
+import alpine.evaluation.Value.Unevaluated
+import alpine.evaluation.Value.Poison
 
 /** The evaluation of an Alpine program.
  *
@@ -131,14 +138,16 @@ final class Interpreter(
     matchingCases match
       case Nil => throw Panic("No matching case !")
       case _ =>  
-        val bindings = matches(scrutineeValue, matchingCases.head.pattern).get
+        val bindings = matches(scrutineeValue, matchingCases.head.pattern).get // ! Could be None ! 
         matchingCases.head.body.visit(this)(using context.pushing(bindings))
 
   def visitMatchCase(n: ast.Match.Case)(using context: Context): Value =
     unexpectedVisit(n)
 
   def visitLet(n: ast.Let)(using context: Context): Value =
-    ???
+    val bindingValue = n.binding.initializer.get.visit(this) // Could be None !!
+    val newBindingFrame = Map.from(List((n.binding.nameDeclared, bindingValue)))
+    n.body.visit(this)(using context.pushing(newBindingFrame))
 
   def visitLambda(n: ast.Lambda)(using context: Context): Value =
     ???
@@ -355,18 +364,23 @@ final class Interpreter(
   )(using context: Context): Option[Interpreter.Frame] =
     import Interpreter.Frame
     scrutinee match
-      case s: Value.Record => ??? 
-      case _ =>
-        None
+      case s: Value.Record =>
+       val patternTypeRecord = Type.Record.from(pattern.tpe)
+       patternTypeRecord match
+        case None => None
+        case Some(ptr) =>
+          if ptr.structurallyMatches(s.dynamicType) then Some((s.fields zip pattern.fields).map((v, p) => matches(v,p.value).get).reduce(_++_)) else None // get could be None !!
+       
+      case _ => None
 
   /** Returns a map from binding in `pattern` to its value iff `scrutinee` matches `pattern`.  */
   private def matchesBinding(
       scrutinee: Value, pattern: ast.Binding
-  )(using context: Context): Option[Interpreter.Frame] =
-    val bindingValue = pattern.visit(this)
-    val frame = Map.from(List((symbols.Name(None, pattern.identifier), bindingValue)))
-    if (bindingValue == scrutinee) && (pattern.ascription.get == scrutinee.dynamicType) then Some(frame) else None
-
+  )(using context: Context): Option[Interpreter.Frame] =  
+    val frame = Map((pattern.nameDeclared, scrutinee))
+    pattern.ascription match
+      case None => if scrutinee.dynamicType == pattern.tpe then Some(frame) else None
+      case Some(asc) => if scrutinee.dynamicType == asc.tpe then Some(frame) else None
 
 end Interpreter
 
