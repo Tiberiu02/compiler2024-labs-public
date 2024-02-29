@@ -127,9 +127,12 @@ final class Interpreter(
 
   def visitMatch(n: ast.Match)(using context: Context): Value =
     val scrutineeValue = n.scrutinee.visit(this)
-    val matchingCase = n.cases.filter(c => matches(scrutineeValue, c.pattern).exists(_ => true)).head // matchingCase Could be Nil !
-    val bindings = matches(scrutineeValue, matchingCase.pattern).get
-    matchingCase.body.visit(this)(using context.pushing(bindings))
+    val matchingCases = n.cases.filter(c => matches(scrutineeValue, c.pattern).exists(_ => true)) // matchingCase Could be Nil !
+    matchingCases match
+      case Nil => throw Panic("No matching case !")
+      case _ =>  
+        val bindings = matches(scrutineeValue, matchingCases.head.pattern).get
+        matchingCases.head.body.visit(this)(using context.pushing(bindings))
 
   def visitMatchCase(n: ast.Match.Case)(using context: Context): Value =
     unexpectedVisit(n)
@@ -342,7 +345,9 @@ final class Interpreter(
   private def matchesValue(
       scrutinee: Value, pattern: ast.ValuePattern
   )(using context: Context): Option[Interpreter.Frame] =
-    ???
+    val patternValue = pattern.value.visit(this)
+    if patternValue == scrutinee then Some(Map.empty[symbols.Name, Value]) else None
+
 
   /** Returns a map from binding in `pattern` to its value iff `scrutinee` matches `pattern`.  */
   private def matchesRecord(
@@ -351,7 +356,7 @@ final class Interpreter(
     import Interpreter.Frame
     scrutinee match
       case s: Value.Record =>
-        ???
+        
       case _ =>
         None
 
