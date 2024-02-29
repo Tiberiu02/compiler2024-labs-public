@@ -21,6 +21,7 @@ import alpine.evaluation.Value.Record
 import alpine.evaluation.Value.Lambda
 import alpine.evaluation.Value.Unevaluated
 import alpine.evaluation.Value.Poison
+import alpine.ast.Typecast
 
 /** The evaluation of an Alpine program.
  *
@@ -150,13 +151,20 @@ final class Interpreter(
     n.body.visit(this)(using context.pushing(newBindingFrame))
 
   def visitLambda(n: ast.Lambda)(using context: Context): Value =
-    ???
+    Value.Lambda(n.body, n.inputs, context.flattened, n.tpe)
+  
 
   def visitParenthesizedExpression(n: ast.ParenthesizedExpression)(using context: Context): Value =
     n.inner.visit(this)
 
   def visitAscribedExpression(n: ast.AscribedExpression)(using context: Context): Value =
-    ???
+    val e = n.inner.visit(this)
+    n.operation match
+      case Typecast.Widen => e
+      case Typecast.Narrow => if e.dynamicType.isSubtypeOf(n.ascription.tpe) then Value.some(e) else Value.none
+      case Typecast.NarrowUnconditionally =>
+        if e.dynamicType.isSubtypeOf(n.ascription.tpe) then e
+        else throw Panic(s"cannot cast '${e.dynamicType}' to '${n.ascription.tpe}'")
 
   def visitTypeIdentifier(n: ast.TypeIdentifier)(using context: Context): Value =
     unexpectedVisit(n)
