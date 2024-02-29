@@ -355,8 +355,7 @@ final class Interpreter(
   )(using context: Context): Option[Interpreter.Frame] =
     import Interpreter.Frame
     scrutinee match
-      case s: Value.Record =>
-        
+      case s: Value.Record => ??? 
       case _ =>
         None
 
