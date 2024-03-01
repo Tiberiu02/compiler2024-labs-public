@@ -108,7 +108,12 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns a prefix application. */
   private[parsing] def prefixExpression(): Expression =
-    ???
+    if noWhitespaceBeforeNextToken then
+      val ident = identifier()
+      val compoundExpr = compoundExpression()
+      PrefixApplication(ident, compoundExpr, ident.site) 
+    else 
+      identifier()
 
   /** Parses and returns a compound expression. */
   private[parsing] def compoundExpression(): Expression =
