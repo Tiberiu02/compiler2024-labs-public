@@ -111,8 +111,26 @@ class Parser(val source: SourceFile):
     ???
 
   /** Parses and returns a compound expression. */
+  // CompoundExpression -> PrimaryExpression ['.' Integer | '.' Identifier | '.' InfixOp | '(' LabeledExpressionList ')']
   private[parsing] def compoundExpression(): Expression =
-    ???
+    val e = prefixExpression()
+    peek match
+      case Some(Token(K.Dot, _)) =>
+        take()
+        val s = peek match {
+          case Some(Token(K.Integer, _)) => integerLiteral()
+          case Some(Token(K.Identifier, _)) => identifier()
+          case Some(Token(K.Operator, _)) => operator()
+          case _ => throw FatalError("expected integer, identifier, or operator", emptySiteAtLastBoundary)
+        }
+        Selection(e, s.asInstanceOf[ast.Selectee], e.site.extendedTo(lastBoundary))
+      case Some(Token(K.LParen, _)) =>
+        val l = parenthesizedLabeledList(() => expression())
+        Application(e, l, e.site.extendedTo(lastBoundary))
+      case _ =>
+        e
+
+    
 
   /** Parses and returns a term-level primary exression.
    *
