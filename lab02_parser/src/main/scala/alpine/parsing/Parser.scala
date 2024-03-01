@@ -100,7 +100,6 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns an infix expression. */
   private[parsing] def infixExpression(precedence: Int = ast.OperatorPrecedence.min): Expression =
-
     ???
 
   /** Parses and returns an expression with an optional ascription. */
