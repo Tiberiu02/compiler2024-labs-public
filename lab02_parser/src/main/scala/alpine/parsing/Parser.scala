@@ -183,7 +183,13 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns a conditional expression. */
   private[parsing] def conditional(): Expression =
-    ???
+    take(K.If)
+    val c = expression()
+    take(K.Then)
+    val t = expression()
+    take(K.Else)
+    val e = expression()
+    Conditional(c, t, e, c.site.extendedTo(lastBoundary))
 
   /** Parses and returns a match expression. */
   private[parsing] def mtch(): Expression =
