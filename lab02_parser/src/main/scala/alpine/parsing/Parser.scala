@@ -7,6 +7,7 @@ import alpine.util.FatalError
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.collection.SeqView.Reverse
+import alpine.evaluation.Panic
 
 class Parser(val source: SourceFile):
 
@@ -104,7 +105,13 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns an expression with an optional ascription. */
   private[parsing] def ascribed(): Expression =
-    ???
+    val prefixExpresion = prefixExpression()
+    val operation = typecast()
+    val typeIdenfitier = typeIdentifier()
+
+    AscribedExpression(prefixExpresion, operation, typeIdenfitier, 
+      prefixExpresion.site.extendedTo(lastBoundary))
+      
 
   /** Parses and returns a prefix application. */
   private[parsing] def prefixExpression(): Expression =
