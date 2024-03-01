@@ -480,15 +480,25 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns `element` surrounded by a pair of parentheses. */
   private[parsing] def inParentheses[T](element: () => T): T =
-    ???
+    take(K.LParen)
+    val parsedExpression = element()
+    take(K.RParen)
+    parsedExpression
 
   /** Parses and returns `element` surrounded by a pair of braces. */
   private[parsing] def inBraces[T](element: () => T): T =
-    ???
+    take(K.LBrace)
+    val parsedExpression = element()
+    take(K.RBrace)
+    parsedExpression
 
   /** Parses and returns `element` surrounded by angle brackets. */
   private[parsing] def inAngles[T](element: () => T): T =
-    ???
+    take(K.LAngle)
+    val parsedExpression = element()
+    take(K.RAngle)
+    parsedExpression
+    
 
   /** Parses and returns `element` surrounded by a `left` and `right`. */
   private[parsing] def delimited[T](left: Token.Kind, right: Token.Kind, element: () => T): T =
