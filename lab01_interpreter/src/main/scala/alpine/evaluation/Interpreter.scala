@@ -135,20 +135,26 @@ final class Interpreter(
 
   def visitMatch(n: ast.Match)(using context: Context): Value =
     val scrutineeValue = n.scrutinee.visit(this)
-    val matchingCases = n.cases.filter(c => matches(scrutineeValue, c.pattern).exists(_ => true)) // matchingCase Could be Nil !
+    val matchingCases = n.cases.filter(c => matches(scrutineeValue, c.pattern).exists(_ => true)) 
     matchingCases match
       case Nil => throw Panic("No matching case !")
       case _ =>  
-        val bindings = matches(scrutineeValue, matchingCases.head.pattern).get // ! Could be None ! 
-        matchingCases.head.body.visit(this)(using context.pushing(bindings))
+        val bindings = matches(scrutineeValue, matchingCases.head.pattern)
+        bindings match
+          case None => throw Panic("No matching case !")
+          case Some(bindings) => 
+            matchingCases.head.body.visit(this)(using context.pushing(bindings))
 
   def visitMatchCase(n: ast.Match.Case)(using context: Context): Value =
     unexpectedVisit(n)
 
   def visitLet(n: ast.Let)(using context: Context): Value =
-    val bindingValue = n.binding.initializer.get.visit(this) // Could be None !!
-    val newBindingFrame = Map.from(List((n.binding.nameDeclared, bindingValue)))
-    n.body.visit(this)(using context.pushing(newBindingFrame))
+    n.binding.initializer match
+      case Some(bindingInitializer) =>
+        val bindingValue = bindingInitializer.visit(this) 
+        val newBindingFrame = Map.from(List((n.binding.nameDeclared, bindingValue)))
+        n.body.visit(this)(using context.pushing(newBindingFrame))
+      case None => throw Panic("No biding initializer !")
 
   def visitLambda(n: ast.Lambda)(using context: Context): Value =
     Value.Lambda(n.body, n.inputs, context.flattened, n.tpe)
@@ -388,7 +394,7 @@ final class Interpreter(
                 }
             }
             if flag then Some(FrameAcc) else None
-          else None // get could be None !!
+          else None  
        
       case _ => None
 
@@ -399,7 +405,7 @@ final class Interpreter(
     val frame = Map((pattern.nameDeclared, scrutinee))
     pattern.ascription match
       case None => if scrutinee.dynamicType == pattern.tpe then Some(frame) else None
-      case Some(asc) => if scrutinee.dynamicType == asc.tpe then Some(frame) else None
+      case Some(asc) => if scrutinee.dynamicType.isSubtypeOf(asc.tpe) then Some(frame) else None
 
 end Interpreter
 
