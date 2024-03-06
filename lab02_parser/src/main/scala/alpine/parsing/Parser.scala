@@ -61,7 +61,15 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns a function declaration. */
   private[parsing] def function(): Function =
-    ???
+    take(K.Fun)
+    val name = expect(K.Identifier)
+    val typeParameters = typeParameterList() 
+    val valueParameters = valueParameterList()
+    val returnType = if take(K.Arrow) != None then Some(tpe()) else None
+    take(K.LBrace)
+    val body = expression()
+    take(K.RBrace)
+    Function(name.site.text.toString, typeParameters, valueParameters, returnType, body, name.site.extendedTo(lastBoundary))
 
   /** Parses and returns the identifier of a function. */
   private def functionIdentifier(): String =
@@ -75,11 +83,20 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns a list of parameter declarations in parentheses. */
   private[parsing] def valueParameterList(): List[Parameter] =
-    ???
+    inParentheses(() => commaSeparatedList(K.RParen.matches, parameter))
+      .collect({ case p: Parameter => p })
 
   /** Parses and returns a parameter declaration. */
   private[parsing] def parameter(): Declaration =
-    ???
+
+    val s = take().get
+    val label = if s.kind == K.Identifier || s.kind.isKeyword then Some(s.site.text.toString) else None
+    println(s.kind)
+    println(label)
+    val name = expect(K.Identifier).site.text.toString
+    val tp = if take(K.Colon) != None then Some(tpe()) else None
+    Parameter(label, name, tp, s.site.extendedTo(lastBoundary))
+
 
   /** Parses and returns a type declaration. */
   private[parsing] def typeDeclaration(): TypeDeclaration =
