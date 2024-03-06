@@ -7,6 +7,7 @@ import alpine.util.FatalError
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.collection.SeqView.Reverse
+import alpine.evaluation.Panic
 
 class Parser(val source: SourceFile):
 
@@ -116,16 +117,26 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns an infix expression. */
   private[parsing] def infixExpression(precedence: Int = ast.OperatorPrecedence.min): Expression =
-
     ???
 
   /** Parses and returns an expression with an optional ascription. */
   private[parsing] def ascribed(): Expression =
-    ???
+    val prefixExpresion = prefixExpression()
+    val operation = typecast()
+    val typeIdenfitier = typeIdentifier()
+
+    AscribedExpression(prefixExpresion, operation, typeIdenfitier, 
+      prefixExpresion.site.extendedTo(lastBoundary))
+      
 
   /** Parses and returns a prefix application. */
   private[parsing] def prefixExpression(): Expression =
-    ???
+    if noWhitespaceBeforeNextToken then
+      val ident = identifier()
+      val compoundExpr = compoundExpression()
+      PrefixApplication(ident, compoundExpr, ident.site) 
+    else 
+      identifier()
 
   /** Parses and returns a compound expression. */
   // CompoundExpression -> PrimaryExpression ['.' Integer | '.' Identifier | '.' InfixOp | '(' LabeledExpressionList ')']
@@ -486,15 +497,25 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns `element` surrounded by a pair of parentheses. */
   private[parsing] def inParentheses[T](element: () => T): T =
-    ???
+    take(K.LParen)
+    val parsedExpression = element()
+    take(K.RParen)
+    parsedExpression
 
   /** Parses and returns `element` surrounded by a pair of braces. */
   private[parsing] def inBraces[T](element: () => T): T =
-    ???
+    take(K.LBrace)
+    val parsedExpression = element()
+    take(K.RBrace)
+    parsedExpression
 
   /** Parses and returns `element` surrounded by angle brackets. */
   private[parsing] def inAngles[T](element: () => T): T =
-    ???
+    take(K.LAngle)
+    val parsedExpression = element()
+    take(K.RAngle)
+    parsedExpression
+    
 
   /** Parses and returns `element` surrounded by a `left` and `right`. */
   private[parsing] def delimited[T](left: Token.Kind, right: Token.Kind, element: () => T): T =
