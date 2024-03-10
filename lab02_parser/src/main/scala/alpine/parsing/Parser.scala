@@ -239,7 +239,7 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns a match expression. */
   private[parsing] def mtch(): Expression =
-    ???
+    ??? 
 
   /** Parses and returns a the cases of a match expression. */
   private def matchBody(): List[Match.Case] =
@@ -275,7 +275,33 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns a lambda or parenthesized term-level expression. */
   private def lambdaOrParenthesizedExpression(): Expression =
-    ???
+    // move forward until after the last parenthesis
+    val backupPoint = snapshot()
+    take(K.LParen)
+    val innerExpression = expression()
+    take(K.RParen)
+
+    peek match
+      /* if there is an arrow, we evaluate as a lambda */
+      case Some(Token(K.Arrow, _)) =>
+        restore(backupPoint)
+        take(K.LParen)
+        val inputs = valueParameterList()
+        take(K.RParen)
+        
+        // check if there was a provided type
+        val outputType = peek match 
+          case Some(Token(K.LBrace, _)) =>
+            None
+          case _ =>
+            Some(tpe())
+
+        val body = expression()
+        Lambda(inputs, outputType, body, body.site.extendedTo(lastBoundary))
+      /* if there isn't an arrow, we evaluate as a parenthesized expression */
+      case _ =>
+        restore(backupPoint)
+        inParentheses(() => expression())
 
   /** Parses and returns an operator. */
   private def operator(): Expression =
@@ -397,6 +423,16 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns a arrow or parenthesized type-level expression. */
   private[parsing] def arrowOrParenthesizedType(): Type =
+    val backupPoint = snapshot() // create backup snapshot
+    take(K.LParen) // consume left-hand parenthesis 
+    val inputs = typeArguments()
+    take(K.RParen) // consume right-hand parenthesis
+
+    peek match 
+      case Some(Token(K.Arrow, _)) =>
+        restore(backupPoint)
+      case _ =>
+        restore(backupPoint)
     ???
 
   // --- Patterns -------------------------------------------------------------
