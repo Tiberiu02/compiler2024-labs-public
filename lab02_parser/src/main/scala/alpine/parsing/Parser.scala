@@ -239,7 +239,10 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns a match expression. */
   private[parsing] def mtch(): Expression =
-    ??? 
+    take(K.Match)
+    val matchExpression = expression()
+    val body = matchBody()
+    Match(matchExpression, body, matchExpression.site.extendedTo(lastBoundary))
 
   /** Parses and returns a the cases of a match expression. */
   private def matchBody(): List[Match.Case] =
