@@ -7,6 +7,7 @@ import alpine.util.FatalError
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.collection.SeqView.Reverse
+import alpine.evaluation.Panic
 
 class Parser(val source: SourceFile):
 
@@ -61,7 +62,15 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns a function declaration. */
   private[parsing] def function(): Function =
-    ???
+    take(K.Fun)
+    val name = expect(K.Identifier)
+    val typeParameters = typeParameterList() 
+    val valueParameters = valueParameterList()
+    val returnType = if take(K.Arrow) != None then Some(tpe()) else None
+    take(K.LBrace)
+    val body = expression()
+    take(K.RBrace)
+    Function(name.site.text.toString, typeParameters, valueParameters, returnType, body, name.site.extendedTo(lastBoundary))
 
   /** Parses and returns the identifier of a function. */
   private def functionIdentifier(): String =
@@ -75,11 +84,20 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns a list of parameter declarations in parentheses. */
   private[parsing] def valueParameterList(): List[Parameter] =
-    ???
+    inParentheses(() => commaSeparatedList(K.RParen.matches, parameter))
+      .collect({ case p: Parameter => p })
 
   /** Parses and returns a parameter declaration. */
   private[parsing] def parameter(): Declaration =
-    ???
+
+    val s = take().get
+    val label = if s.kind == K.Identifier || s.kind.isKeyword then Some(s.site.text.toString) else None
+    println(s.kind)
+    println(label)
+    val name = expect(K.Identifier).site.text.toString
+    val tp = if take(K.Colon) != None then Some(tpe()) else None
+    Parameter(label, name, tp, s.site.extendedTo(lastBoundary))
+
 
   /** Parses and returns a type declaration. */
   private[parsing] def typeDeclaration(): TypeDeclaration =
@@ -99,12 +117,17 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns an infix expression. */
   private[parsing] def infixExpression(precedence: Int = ast.OperatorPrecedence.min): Expression =
-
     ???
 
   /** Parses and returns an expression with an optional ascription. */
   private[parsing] def ascribed(): Expression =
-    ???
+    val prefixExpresion = prefixExpression()
+    val operation = typecast()
+    val typeIdenfitier = typeIdentifier()
+
+    AscribedExpression(prefixExpresion, operation, typeIdenfitier, 
+      prefixExpresion.site.extendedTo(lastBoundary))
+      
 
   /** Parses and returns a prefix application. */
   private[parsing] def prefixExpression(): Expression =
@@ -216,7 +239,10 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns a match expression. */
   private[parsing] def mtch(): Expression =
-    ???
+    take(K.Match)
+    val matchExpression = expression()
+    val body = matchBody()
+    Match(matchExpression, body, matchExpression.site.extendedTo(lastBoundary))
 
   /** Parses and returns a the cases of a match expression. */
   private def matchBody(): List[Match.Case] =
@@ -252,7 +278,33 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns a lambda or parenthesized term-level expression. */
   private def lambdaOrParenthesizedExpression(): Expression =
-    ???
+    // move forward until after the last parenthesis
+    val backupPoint = snapshot()
+    take(K.LParen)
+    val innerExpression = expression()
+    take(K.RParen)
+
+    peek match
+      /* if there is an arrow, we evaluate as a lambda */
+      case Some(Token(K.Arrow, _)) =>
+        restore(backupPoint)
+        take(K.LParen)
+        val inputs = valueParameterList()
+        take(K.RParen)
+        
+        // check if there was a provided type
+        val outputType = peek match 
+          case Some(Token(K.LBrace, _)) =>
+            None
+          case _ =>
+            Some(tpe())
+
+        val body = expression()
+        Lambda(inputs, outputType, body, body.site.extendedTo(lastBoundary))
+      /* if there isn't an arrow, we evaluate as a parenthesized expression */
+      case _ =>
+        restore(backupPoint)
+        inParentheses(() => expression())
 
   /** Parses and returns an operator. */
   private def operator(): Expression =
@@ -374,6 +426,16 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns a arrow or parenthesized type-level expression. */
   private[parsing] def arrowOrParenthesizedType(): Type =
+    val backupPoint = snapshot() // create backup snapshot
+    take(K.LParen) // consume left-hand parenthesis 
+    val inputs = typeArguments()
+    take(K.RParen) // consume right-hand parenthesis
+
+    peek match 
+      case Some(Token(K.Arrow, _)) =>
+        restore(backupPoint)
+      case _ =>
+        restore(backupPoint)
     ???
 
   // --- Patterns -------------------------------------------------------------
@@ -484,15 +546,25 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns `element` surrounded by a pair of parentheses. */
   private[parsing] def inParentheses[T](element: () => T): T =
-    ???
+    take(K.LParen)
+    val parsedExpression = element()
+    take(K.RParen)
+    parsedExpression
 
   /** Parses and returns `element` surrounded by a pair of braces. */
   private[parsing] def inBraces[T](element: () => T): T =
-    ???
+    take(K.LBrace)
+    val parsedExpression = element()
+    take(K.RBrace)
+    parsedExpression
 
   /** Parses and returns `element` surrounded by angle brackets. */
   private[parsing] def inAngles[T](element: () => T): T =
-    ???
+    take(K.LAngle)
+    val parsedExpression = element()
+    take(K.RAngle)
+    parsedExpression
+    
 
   /** Parses and returns `element` surrounded by a `left` and `right`. */
   private[parsing] def delimited[T](left: Token.Kind, right: Token.Kind, element: () => T): T =
