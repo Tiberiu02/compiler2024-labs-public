@@ -452,7 +452,17 @@ class Parser(val source: SourceFile):
   private[parsing] def labeled[T <: Tree](
       value: () => T
   ): Labeled[T] =
-    ???
+      // use the functions restore and snapshot
+      val stateBeforeParsing = snapshot()
+      // may want to backtrack using restore with the snapshot if the combinator fails 
+      val n = take() // could be None
+      n match
+        case Some[Token.Kind.Label] => Labeled(Some(n.get.site.text), value())
+         // then we exepect the next token to define 
+        case _ => Labeled(None, value(), n.get.site)
+      
+
+      
 
   /** Parses and returns a sequence of `element` separated by commas and delimited on the RHS  by a
    *  token satisfying `isTerminator`.
