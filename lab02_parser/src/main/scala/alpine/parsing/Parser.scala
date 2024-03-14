@@ -110,7 +110,11 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns a type declaration. */
   private[parsing] def typeDeclaration(): TypeDeclaration =
-    ???
+    take(K.Type)
+    val name = expect(K.Identifier)
+    val typeParameters = typeParameterList()
+    val body = tpe()
+    TypeDeclaration(name.site.text.toString, typeParameters, body, name.site.extendedTo(lastBoundary))
 
   /** Parses and returns a list of parameter declarations in angle brackets. */
   //--- This is intentionally left in the handout /*+++ +++*/
@@ -124,10 +128,16 @@ class Parser(val source: SourceFile):
   def expression(): Expression =
     infixExpression()
 
-  /** Parses and returns an infix expression. */
+  /** 
+   * Parses and returns an infix expression. As we saw in the lecture, parsing expressions requires care because of the ambiguity introduced by precedence.
+   * Notice that infixEpression takes a precendence as input: you may use it this parameter to factor out the parsing of all possible infix expressions with different precedence levels.
+   * You may take inspiration from the precedence climbing algorithm to parse infix expressions.
+   *  **/
   private[parsing] def infixExpression(precedence: Int = ast.OperatorPrecedence.min): Expression =
-   ???
+    ???
 
+  
+     
   /** Parses and returns an expression with an optional ascription. */
   private[parsing] def ascribed(): Expression =
     val prefixExpresion = prefixExpression()
@@ -143,7 +153,7 @@ class Parser(val source: SourceFile):
     peek match {
       case Some(Token(K.Operator, _)) =>
         val operator = take(K.Operator).get
-        val ident = Identifier(operator.site.text.toString.toString(), operator.site.extendedTo(lastBoundary))
+        val ident = Identifier(operator.site.text.toString, operator.site.extendedTo(lastBoundary))
         if noWhitespaceBeforeNextToken then
           val compoundExpr = compoundExpression()
           PrefixApplication(ident, compoundExpr, ident.site.extendedTo(lastBoundary))
@@ -237,7 +247,8 @@ class Parser(val source: SourceFile):
   /** Parses and returns a term-level record expression. */
   private def recordExpression(): Record = {
     val label = expect(K.Label)
-    val name  = take(K.Identifier)
+    val name = identifier()
+    //val name  = take(K.Identifier)
 
     peek match {
       case Some(Token(K.LParen, _)) =>
@@ -454,11 +465,12 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns a type identifier. */
   private def typeIdentifier(): Type =
-    ???
+    val id = expect(K.Identifier)
+    TypeIdentifier(id.site.text.toString, id.site.extendedTo(lastBoundary))
 
   /** Parses and returns a list of type arguments. */
   private def typeArguments(): List[Labeled[Type]] =
-    ???
+    inAngles(() => commaSeparatedList(K.RAngle.matches, () => labeled(tpe)))
 
   /** Parses and returns a type-level record expressions. */
   private[parsing] def recordType(): RecordType =
@@ -501,7 +513,8 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns a wildcard pattern. */
   def wildcard(): Wildcard =
-    ??? 
+    val s = take(K.Underscore).get
+    Wildcard(s.site.extendedTo(lastBoundary))
 
   /** Parses and returns a record pattern. */
   private def recordPattern(): RecordPattern =
@@ -572,18 +585,33 @@ class Parser(val source: SourceFile):
       value: () => T
   ): Labeled[T] =
       // use the functions restore and snapshot
-      val stateBeforeParsing = snapshot()
       // may want to backtrack using restore with the snapshot if the combinator fails 
-      val n = take().get // could be None
-
-      if (n.kind.isKeyword || n.kind == K.Identifier) then
-        val v = value()
-        // there may be an issue with the columns !
-        Labeled(Some(n.site.text.toString), v, n.site.extendedTo(lastBoundary))
+      val stateBeforeParsing = snapshot()
+      val n = take() // could be None
+      if (n.isEmpty) then 
+        // val v = value()
+        // Labeled(None, v, v.site.extendedTo(lastBoundary))
+        throw FatalError("expected label", emptySiteAtLastBoundary)
       else
-        restore(stateBeforeParsing)
-        val v = value()
-        Labeled(None, v, v.site.extendedTo(lastBoundary))
+        val m = n.get
+        if (m.kind.isKeyword || m.kind == K.Identifier) then
+          val v = value()
+          // there may be an issue with the columns !
+          Labeled(Some(m.site.text.toString), v, m.site.extendedTo(lastBoundary))
+        else
+          restore(stateBeforeParsing)
+          val v = value()
+          Labeled(None, v, v.site.extendedTo(lastBoundary)) 
+    // peek match
+    //   case Some(n) if n.kind.isKeyword || n.kind == K.Identifier =>
+    //     take()
+    //     take(K.Colon)
+    //     val v = value()
+    //     Labeled(Some(n.site.text.toString), v, n.site.extendedTo(lastBoundary))
+    //   case _ => 
+    //     //restore(stateBeforeAttempt)
+    //     val v = value()
+    //     Labeled(None, v, v.site)
 
   /** Parses and returns a sequence of `element` separated by commas and delimited on the RHS  by a
    *  token satisfying `isTerminator`.
