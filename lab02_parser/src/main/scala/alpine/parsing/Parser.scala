@@ -517,12 +517,16 @@ class Parser(val source: SourceFile):
       // use the functions restore and snapshot
       val stateBeforeParsing = snapshot()
       // may want to backtrack using restore with the snapshot if the combinator fails 
-      val n = take() // could be None
-      n match
-        case Some[Token.Kind.Label] => Labeled(Some(n.get.site.text), value())
-         // then we exepect the next token to define 
-        case _ => Labeled(None, value(), n.get.site)
-      
+      val n = take().get // could be None
+
+      if (n.kind.isKeyword || n.kind == K.Identifier) then
+        val v = value()
+        Labeled(Some(n.site.text.toString()), v, n.site.extendedTo(v.site.end))
+      else
+        restore(stateBeforeParsing)
+        val v = value()
+        Labeled(None, v, v.site)
+
 
       
 
