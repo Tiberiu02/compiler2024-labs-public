@@ -58,7 +58,16 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns a binding declaration. */
   private[parsing] def binding(initializerIsExpected: Boolean = true): Binding =
-  ???
+    take(K.Let)
+    val id = expect(K.Identifier)
+    val binding_tp = if take(K.Colon) != None then Some(tpe()) else None
+    val init = if take(K.Operator) != None then Some(expression()) else None
+    if initializerIsExpected && init.isEmpty then
+      throw ExpectedTokenError(K.Operator, emptySiteAtLastBoundary)
+    else 
+      Binding(id.site.text.toString, binding_tp, init, id.site.extendedTo(lastBoundary))
+
+
 
   /** Parses and returns a function declaration. */
   private[parsing] def function(): Function =
@@ -220,12 +229,21 @@ class Parser(val source: SourceFile):
     
 
   /** Parses and returns a term-level record expression. */
-  private def recordExpression(): Record =
-    ???
-
+  private def recordExpression(): Record = {
+    val label = expect(K.Label)
+    val name = expect(K.Identifier)
+    peek match {
+      case Some(Token(K.LBrace, _)) =>
+        val fields = inBraces(() => recordExpressionFields())
+        Record(label.site.text.toString, fields, label.site.extendedTo(lastBoundary))
+      case _ =>
+        val fields = List(Labeled(None, identifier(), name.site))
+        Record(label.site.text.toString, fields, label.site.extendedTo(lastBoundary))
+    }
+  }
   /** Parses and returns the fields of a term-level record expression. */
   private def recordExpressionFields(): List[Labeled[Expression]] =
-    ???
+    inBraces(() => commaSeparatedList(K.RBrace.matches, () => labeled(expression)))
 
   /** Parses and returns a conditional expression. */
   private[parsing] def conditional(): Expression =
@@ -274,7 +292,10 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns a let expression. */
   private[parsing] def let(): Let =
-    ???
+    take(K.Let)
+    val b = binding()
+    val body = expression()
+    Let(b, body, b.site.extendedTo(lastBoundary))
 
   /** Parses and returns a lambda or parenthesized term-level expression. */
   private def lambdaOrParenthesizedExpression(): Expression =
@@ -394,7 +415,12 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns a type-level expression. */
   private[parsing] def tpe(): Type =
-  ???
+    peek match
+      case Some(Token(K.LParen, _)) =>
+        arrowOrParenthesizedType()
+      case _ =>
+        primaryType()
+
 
   /** Parses and returns a type-level primary exression. */
   private def primaryType(): Type =
@@ -418,11 +444,14 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns a type-level record expressions. */
   private[parsing] def recordType(): RecordType =
-    ???
+    val label = expect(K.Label)
+    val fields = inBraces(() => recordTypeFields())
+    RecordType(label.site.text.toString, fields, label.site.extendedTo(lastBoundary))
 
   /** Parses and returns the fields of a type-level record expression. */
   private def recordTypeFields(): List[Labeled[Type]] =
-    ???
+    inBraces(() => commaSeparatedList(K.RBrace.matches, () => labeled(tpe)))
+
 
   /** Parses and returns a arrow or parenthesized type-level expression. */
   private[parsing] def arrowOrParenthesizedType(): Type =
@@ -454,23 +483,29 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns a wildcard pattern. */
   def wildcard(): Wildcard =
-    ???
+    ??? 
 
   /** Parses and returns a record pattern. */
   private def recordPattern(): RecordPattern =
-    ???
+    val label = expect(K.Label)
+    val fields = inBraces(() => recordPatternFields())
+    RecordPattern(label.site.text.toString, fields, label.site.extendedTo(lastBoundary))  
 
   /** Parses and returns the fields of a record pattern. */
   private def recordPatternFields(): List[Labeled[Pattern]] =
-    ???
+    inBraces(() => commaSeparatedList(K.RBrace.matches, () => labeled(pattern)))
 
   /** Parses and returns a binding pattern. */
   private def bindingPattern(): Binding =
-    ???
+    take(K.Let)
+    val id = expect(K.Identifier)
+    val tp = if take(K.Colon) != None then Some(tpe()) else None
+    Binding(id.site.text.toString, tp, None, id.site.extendedTo(lastBoundary))
 
   /** Parses and returns a value pattern. */
   private def valuePattern(): ValuePattern =
-    ???
+    val e = expression()
+    ValuePattern(e, e.site)
 
   // --- Common trees ---------------------------------------------------------
 
@@ -490,7 +525,9 @@ class Parser(val source: SourceFile):
       fields: () => List[Field],
       make: (String, List[Field], SourceSpan) => T
   ): T =
-    ???
+    val id = take(K.Identifier).get
+    val fieldsList = fields()
+    make(id.site.text.toString, fieldsList, SourceSpan(id.site.file, id.site.start, fieldsList.last.site.end))
 
   /** Parses and returns a parenthesized list of labeled value.
    *
@@ -501,7 +538,9 @@ class Parser(val source: SourceFile):
   private[parsing] def parenthesizedLabeledList[T <: Tree](
       value: () => T
   ): List[Labeled[T]] =
-    ???
+    inParentheses(() => commaSeparatedList(K.RParen.matches, () => labeled(value)))
+
+
 
   /** Parses and returns a value optionally prefixed by a label.
    *
@@ -521,6 +560,7 @@ class Parser(val source: SourceFile):
 
       if (n.kind.isKeyword || n.kind == K.Identifier) then
         val v = value()
+        // there may be an issue with the columns !
         Labeled(Some(n.site.text.toString()), v, n.site.extendedTo(v.site.end))
       else
         restore(stateBeforeParsing)
