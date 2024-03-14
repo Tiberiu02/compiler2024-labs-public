@@ -126,7 +126,7 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns an infix expression. */
   private[parsing] def infixExpression(precedence: Int = ast.OperatorPrecedence.min): Expression =
-    ???
+   ???
 
   /** Parses and returns an expression with an optional ascription. */
   private[parsing] def ascribed(): Expression =
@@ -140,17 +140,23 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns a prefix application. */
   private[parsing] def prefixExpression(): Expression =
-    if noWhitespaceBeforeNextToken then
-      val ident = identifier()
-      val compoundExpr = compoundExpression()
-      PrefixApplication(ident, compoundExpr, ident.site) 
-    else 
-      identifier()
+    peek match {
+      case Some(Token(K.Operator, _)) =>
+        val operator = take(K.Operator).get
+        val ident = Identifier(operator.site.text.toString.toString(), operator.site.extendedTo(lastBoundary))
+        if noWhitespaceBeforeNextToken then
+          val compoundExpr = compoundExpression()
+          PrefixApplication(ident, compoundExpr, ident.site.extendedTo(lastBoundary))
+        else
+          ident
+      case _ =>
+        compoundExpression()
+    }
 
   /** Parses and returns a compound expression. */
   // CompoundExpression -> PrimaryExpression ['.' Integer | '.' Identifier | '.' InfixOp | '(' LabeledExpressionList ')']
   private[parsing] def compoundExpression(): Expression =
-    val e = prefixExpression()
+    val e = primaryExpression()
     peek match
       case Some(Token(K.Dot, _)) =>
         take()
@@ -231,16 +237,28 @@ class Parser(val source: SourceFile):
   /** Parses and returns a term-level record expression. */
   private def recordExpression(): Record = {
     val label = expect(K.Label)
-    val name = expect(K.Identifier)
+    val name  = take(K.Identifier)
+
     peek match {
-      case Some(Token(K.LBrace, _)) =>
-        val fields = inBraces(() => recordExpressionFields())
+      case Some(Token(K.LParen, _)) =>
+        take(K.LParen)
+        val fields = recordExpressionFields()
         Record(label.site.text.toString, fields, label.site.extendedTo(lastBoundary))
       case _ =>
-        val fields = List(Labeled(None, identifier(), name.site))
+        Record(label.site.text.toString, List(), label.site.extendedTo(lastBoundary))
+    }
+    /*
+    peek match {
+      case Some(Token(K.LBrace, _)) =>
+        val fields = recordExpressionFields()
+        Record(label.site.text.toString, fields, label.site.extendedTo(lastBoundary))
+      case _ =>
+        val fields = List(Labeled(None, identifier(), label.site))
         Record(label.site.text.toString, fields, label.site.extendedTo(lastBoundary))
     }
+    */
   }
+
   /** Parses and returns the fields of a term-level record expression. */
   private def recordExpressionFields(): List[Labeled[Expression]] =
     inBraces(() => commaSeparatedList(K.RBrace.matches, () => labeled(expression)))
@@ -561,14 +579,11 @@ class Parser(val source: SourceFile):
       if (n.kind.isKeyword || n.kind == K.Identifier) then
         val v = value()
         // there may be an issue with the columns !
-        Labeled(Some(n.site.text.toString()), v, n.site.extendedTo(v.site.end))
+        Labeled(Some(n.site.text.toString), v, n.site.extendedTo(lastBoundary))
       else
         restore(stateBeforeParsing)
         val v = value()
-        Labeled(None, v, v.site)
-
-
-      
+        Labeled(None, v, v.site.extendedTo(lastBoundary))
 
   /** Parses and returns a sequence of `element` separated by commas and delimited on the RHS  by a
    *  token satisfying `isTerminator`.
