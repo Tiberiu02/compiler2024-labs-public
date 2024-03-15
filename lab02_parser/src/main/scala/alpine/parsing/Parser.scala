@@ -285,7 +285,7 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns the fields of a term-level record expression. */
   private def recordExpressionFields(): List[Labeled[Expression]] =
-    inParentheses(() => commaSeparatedList(K.RBrace.matches, () => labeled(expression)))
+    inParentheses(() => commaSeparatedList(K.RParen.matches, () => labeled(expression)))
 
   /** Parses and returns a conditional expression. */
   private[parsing] def conditional(): Expression =
@@ -509,7 +509,7 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns the fields of a type-level record expression. */
   private def recordTypeFields(): List[Labeled[Type]] =
-    inBraces(() => commaSeparatedList(K.RBrace.matches, () => labeled(tpe)))
+    inParentheses(() => commaSeparatedList(K.RParen.matches, () => labeled(tpe)))
 
 
   /** Parses and returns a arrow or parenthesized type-level expression. */
