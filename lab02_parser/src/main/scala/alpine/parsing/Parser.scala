@@ -585,6 +585,7 @@ class Parser(val source: SourceFile):
       fields: () => List[Field],
       make: (String, List[Field], SourceSpan) => T
   ): T =
+    val label = expect(K.Label)
     val id = take(K.Identifier).get
     val fieldsList = fields()
     make(id.site.text.toString, fieldsList, SourceSpan(id.site.file, id.site.start, fieldsList.last.site.end))
