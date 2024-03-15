@@ -503,12 +503,12 @@ class Parser(val source: SourceFile):
   /** Parses and returns a type-level record expressions. */
   private[parsing] def recordType(): RecordType =
     val label = expect(K.Label)
-    val fields = inBraces(() => recordTypeFields())
+    val fields = if peek.map(K.LParen.matches).getOrElse(false) then inParentheses(() => recordTypeFields()) else List()
     RecordType(label.site.text.toString, fields, label.site.extendedTo(lastBoundary))
 
   /** Parses and returns the fields of a type-level record expression. */
   private def recordTypeFields(): List[Labeled[Type]] =
-    inParentheses(() => commaSeparatedList(K.RParen.matches, () => labeled(tpe)))
+    inParentheses(() => commaSeparatedList(K.RParen.matches, () => labeled(() => tpe())))
 
 
   /** Parses and returns a arrow or parenthesized type-level expression. */
