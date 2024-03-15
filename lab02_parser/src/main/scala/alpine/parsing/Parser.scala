@@ -73,7 +73,8 @@ class Parser(val source: SourceFile):
   private[parsing] def function(): Function =
     take(K.Fun)
     val name = expect(K.Identifier)
-    val typeParameters = typeParameterList() 
+    // val typeParameters = typeParameterList() 
+    val typeParameters = List() // Not sure why Function takes type parameters. This is not part of the grammar
     val valueParameters = valueParameterList()
     val returnType = if take(K.Arrow) != None then Some(tpe()) else None
     take(K.LBrace)
