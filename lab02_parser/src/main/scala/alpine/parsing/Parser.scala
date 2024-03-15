@@ -136,36 +136,46 @@ class Parser(val source: SourceFile):
    * You may take inspiration from the precedence climbing algorithm to parse infix expressions.
    *  **/
   private[parsing] def infixExpression(precedence: Int = ast.OperatorPrecedence.min): Expression =
-    def rec(lhs: Expression, prec: Int): Expression =
+
+    // helper function for that algorithm on wiki
+    def helper(lhs: Expression, prec: Int): Expression =
       peek match
         case Some(Token(K.Operator, _)) =>
-          val opid1 = operatorIdentifier()
-          val op1 = opid1._1.get
+
+          val opId1 = operatorIdentifier()
           val rhs = ascribed()
-          val id1 = Identifier(op1.toString, opid1._2)
-          if op1.precedence >= prec then
+          if opId1._1.get.precedence >= prec then
+
             peek match
               case Some(Token(K.Operator, _)) =>
-                val snap = snapshot()
-                val opid2 = operatorIdentifier()
-                restore(snap)
-                val op2 = opid2._1.get
-                if op2.precedence > op1.precedence then
-                  val updatedrhs = rec(rhs, op2.precedence)
-                  InfixApplication(id1, lhs, updatedrhs, lhs.site.extendedToCover(updatedrhs.site))
+                val backupPoint = snapshot()
+                val opId2 = operatorIdentifier()
+                restore(backupPoint)
+
+                if opId2._1.get.precedence > opId1._1.get.precedence then
+                  val updatedrhs = helper(rhs, opId2._1.get.precedence)
+
+                  InfixApplication(Identifier(opId1._1.get.toString, opId1._2), 
+                    lhs, updatedrhs, lhs.site.extendedToCover(updatedrhs.site))
                 else
-                  val updatedlhs = InfixApplication(id1, lhs, rhs, lhs.site.extendedToCover(rhs.site))
-                  rec(updatedlhs, op2.precedence)
+                  val updatedlhs = InfixApplication(Identifier(opId1._1.get.toString, opId1._2), lhs, rhs, 
+                    lhs.site.extendedToCover(rhs.site))
+                  helper(updatedlhs, opId2._1.get.precedence)
+
+
               case _ =>
-                InfixApplication(id1, lhs, rhs, lhs.site.extendedToCover(rhs.site))
+                InfixApplication(Identifier(opId1._1.get.toString, opId1._2), 
+                  lhs, rhs, lhs.site.extendedToCover(rhs.site))
+
           else 
-            val updatedlhs = InfixApplication(id1, lhs, rhs, lhs.site.extendedToCover(rhs.site))
-            rec(updatedlhs, op1.precedence)
+            val updatedlhs = InfixApplication(Identifier(opId1._1.get.toString, opId1._2), 
+              lhs, rhs, lhs.site.extendedToCover(rhs.site))
+            helper(updatedlhs, opId1._1.get.precedence)
 
         case _ =>
           lhs
             
-    rec(ascribed(), precedence)
+    helper(ascribed(), precedence)
 
   
      
