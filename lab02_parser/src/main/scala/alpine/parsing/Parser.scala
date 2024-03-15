@@ -170,11 +170,16 @@ class Parser(val source: SourceFile):
   /** Parses and returns an expression with an optional ascription. */
   private[parsing] def ascribed(): Expression =
     val prefixExpresion = prefixExpression()
-    val operation = typecast()
-    val typeIdenfitier = typeIdentifier()
+    
+    val nextSymbol = peek.get
+    if nextSymbol == K.AtBang || nextSymbol == K.AtQuery || nextSymbol == K.At then
+      val operation = typecast()
+      val typeIdenfitier = typeIdentifier()
 
-    AscribedExpression(prefixExpresion, operation, typeIdenfitier, 
-      prefixExpresion.site.extendedTo(lastBoundary))
+      AscribedExpression(prefixExpresion, operation, typeIdenfitier, 
+        prefixExpresion.site.extendedTo(lastBoundary))
+    else 
+      prefixExpresion
       
 
   /** Parses and returns a prefix application. */
