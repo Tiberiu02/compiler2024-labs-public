@@ -333,9 +333,8 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns a let expression. */
   private[parsing] def let(): Let =
-    expect(K.Let)
     val b = binding()
-    val body = expression()
+    val body = inBraces(() => expression())
     Let(b, body, b.site.extendedTo(lastBoundary))
 
   /** Parses and returns a lambda or parenthesized term-level expression. */
