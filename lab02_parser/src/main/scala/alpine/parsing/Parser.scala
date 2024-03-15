@@ -112,7 +112,9 @@ class Parser(val source: SourceFile):
   private[parsing] def typeDeclaration(): TypeDeclaration =
     take(K.Type)
     val name = expect(K.Identifier)
-    val typeParameters = typeParameterList()
+    // val typeParameters = typeParameterList()
+    val typeParameters = List() // Not sure why TypeDeclaration takes parameters. This is not part of the grammar
+    take(K.Eq)
     val body = tpe()
     TypeDeclaration(name.site.text.toString, typeParameters, body, name.site.extendedTo(lastBoundary))
 
@@ -476,11 +478,27 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns a type-level expression. */
   private[parsing] def tpe(): Type =
-    peek match
-      case Some(Token(K.LParen, _)) =>
-        arrowOrParenthesizedType()
-      case _ =>
-        primaryType()
+    val t = primaryType()
+    def isTypeUnionOperator(t: Token): Boolean =
+      t.site.text == "|"
+    if peek.map(isTypeUnionOperator).getOrElse(false) then
+      @tailrec def loop(partialResult: List[Type]): List[Type] =
+        if !peek.map(isTypeUnionOperator).getOrElse(false) then
+          partialResult
+        else
+          take(K.Operator)
+          val nextPartialResult = partialResult :+ primaryType()
+          if !peek.map(isTypeUnionOperator).getOrElse(false) then
+            nextPartialResult
+          else if take(K.Comma) != None then
+            loop(nextPartialResult)
+          else
+            report(ExpectedTokenError(K.Comma, emptySiteAtLastBoundary))
+            loop(nextPartialResult)
+      
+      Sum(loop(List(t)), t.site.extendedTo(lastBoundary))
+    else
+      t
 
 
   /** Parses and returns a type-level primary exression. */
