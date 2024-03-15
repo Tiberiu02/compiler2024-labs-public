@@ -63,7 +63,7 @@ class Parser(val source: SourceFile):
     val binding_tp = if take(K.Colon) != None then Some(tpe()) else None
     val init = if take(K.Eq) != None then Some(expression()) else None
     if initializerIsExpected && init.isEmpty then
-      throw ExpectedTokenError(K.Operator, emptySiteAtLastBoundary)
+      throw ExpectedTokenError(K.Eq, emptySiteAtLastBoundary)
     else 
       Binding(id.site.text.toString, binding_tp, init, id.site.extendedTo(lastBoundary))
 
@@ -71,7 +71,7 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns a function declaration. */
   private[parsing] def function(): Function =
-    take(K.Fun)
+    expect(K.Fun)
     val name = expect(K.Identifier)
     // val typeParameters = typeParameterList() 
     val typeParameters = List() // Not sure why Function takes type parameters. This is not part of the grammar
@@ -334,7 +334,7 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns a let expression. */
   private[parsing] def let(): Let =
-    take(K.Let)
+    expect(K.Let)
     val b = binding()
     val body = expression()
     Let(b, body, b.site.extendedTo(lastBoundary))
