@@ -572,19 +572,24 @@ class Parser(val source: SourceFile):
   /** Parses and returns a record pattern. */
   private def recordPattern(): RecordPattern =
     val label = expect(K.Label)
-    val fields = inBraces(() => recordPatternFields())
+    val fields = inParentheses(() => recordPatternFields())
     RecordPattern(label.site.text.toString, fields, label.site.extendedTo(lastBoundary))  
 
   /** Parses and returns the fields of a record pattern. */
   private def recordPatternFields(): List[Labeled[Pattern]] =
-    inBraces(() => commaSeparatedList(K.RBrace.matches, () => labeled(pattern)))
+    inParentheses(() => commaSeparatedList(K.RParen.matches, () => labeled(pattern)))
 
   /** Parses and returns a binding pattern. */
   private def bindingPattern(): Binding =
     take(K.Let)
     val id = expect(K.Identifier)
     val tp = if take(K.Colon) != None then Some(tpe()) else None
-    Binding(id.site.text.toString, tp, None, id.site.extendedTo(lastBoundary))
+    val hasInit = take(K.Eq)
+    if !hasInit.isEmpty then
+      report(ExpectedTokenError(K.Eq, emptySiteAtLastBoundary))
+      Binding(id.site.text.toString, tp, None, id.site.extendedTo(lastBoundary))
+    else
+      Binding(id.site.text.toString, tp, None, id.site.extendedTo(lastBoundary))
 
   /** Parses and returns a value pattern. */
   private def valuePattern(): ValuePattern =
