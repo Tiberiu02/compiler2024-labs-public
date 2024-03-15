@@ -61,7 +61,7 @@ class Parser(val source: SourceFile):
     take(K.Let)
     val id = expect(K.Identifier)
     val binding_tp = if take(K.Colon) != None then Some(tpe()) else None
-    val init = if take(K.Operator) != None then Some(expression()) else None
+    val init = if take(K.Eq) != None then Some(expression()) else None
     if initializerIsExpected && init.isEmpty then
       throw ExpectedTokenError(K.Operator, emptySiteAtLastBoundary)
     else 
