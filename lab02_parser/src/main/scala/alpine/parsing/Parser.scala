@@ -63,9 +63,8 @@ class Parser(val source: SourceFile):
     val binding_tp = if take(K.Colon) != None then Some(tpe()) else None
     val init = if take(K.Eq) != None then Some(expression()) else None
     if initializerIsExpected && init.isEmpty then
-      throw ExpectedTokenError(K.Eq, emptySiteAtLastBoundary)
-    else 
-      Binding(id.site.text.toString, binding_tp, init, id.site.extendedTo(lastBoundary))
+      report(ExpectedTokenError(K.Eq, emptySiteAtLastBoundary))
+    Binding(id.site.text.toString, binding_tp, init, id.site.extendedTo(lastBoundary))
 
 
 
