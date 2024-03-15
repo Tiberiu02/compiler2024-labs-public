@@ -134,7 +134,36 @@ class Parser(val source: SourceFile):
    * You may take inspiration from the precedence climbing algorithm to parse infix expressions.
    *  **/
   private[parsing] def infixExpression(precedence: Int = ast.OperatorPrecedence.min): Expression =
-    ???
+    def rec(lhs: Expression, prec: Int): Expression =
+      peek match
+        case Some(Token(K.Operator, _)) =>
+          val opid1 = operatorIdentifier()
+          val op1 = opid1._1.get
+          val rhs = ascribed()
+          val id1 = Identifier(op1.toString, opid1._2)
+          if op1.precedence >= prec then
+            peek match
+              case Some(Token(K.Operator, _)) =>
+                val snap = snapshot()
+                val opid2 = operatorIdentifier()
+                restore(snap)
+                val op2 = opid2._1.get
+                if op2.precedence > op1.precedence then
+                  val updatedrhs = rec(rhs, op2.precedence)
+                  InfixApplication(id1, lhs, updatedrhs, lhs.site.extendedToCover(updatedrhs.site))
+                else
+                  val updatedlhs = InfixApplication(id1, lhs, rhs, lhs.site.extendedToCover(rhs.site))
+                  rec(updatedlhs, op2.precedence)
+              case _ =>
+                InfixApplication(id1, lhs, rhs, lhs.site.extendedToCover(rhs.site))
+          else 
+            val updatedlhs = InfixApplication(id1, lhs, rhs, lhs.site.extendedToCover(rhs.site))
+            rec(updatedlhs, op1.precedence)
+
+        case _ =>
+          lhs
+            
+    rec(ascribed(), precedence)
 
   
      
@@ -594,14 +623,23 @@ class Parser(val source: SourceFile):
         throw FatalError("expected label", emptySiteAtLastBoundary)
       else
         val m = n.get
-        if (m.kind.isKeyword || m.kind == K.Identifier) then
-          val v = value()
-          // there may be an issue with the columns !
-          Labeled(Some(m.site.text.toString), v, m.site.extendedTo(lastBoundary))
-        else
-          restore(stateBeforeParsing)
-          val v = value()
-          Labeled(None, v, v.site.extendedTo(lastBoundary)) 
+        take(K.Colon) match
+          case Some(_) =>
+            val v = value()
+            Labeled(Some(m.site.text.toString), v, m.site.extendedTo(lastBoundary))
+          case None =>
+            restore(stateBeforeParsing)
+            val v = value()
+            Labeled(None, v, v.site.extendedTo(lastBoundary))
+        
+        // if (m.kind.isKeyword || m.kind == K.Identifier) then
+        //   val v = value()
+        //   // there may be an issue with the columns !
+        //   Labeled(Some(m.site.text.toString), v, m.site.extendedTo(lastBoundary))
+        // else
+        //   restore(stateBeforeParsing)
+        //   val v = value()
+        //   Labeled(None, v, v.site.extendedTo(lastBoundary)) 
     // peek match
     //   case Some(n) if n.kind.isKeyword || n.kind == K.Identifier =>
     //     take()
