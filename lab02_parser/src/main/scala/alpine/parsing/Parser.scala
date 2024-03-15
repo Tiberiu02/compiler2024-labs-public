@@ -342,7 +342,7 @@ class Parser(val source: SourceFile):
   private def lambdaOrParenthesizedExpression(): Expression =
     // move forward until after the last parenthesis
     val backupPoint = snapshot()
-    take(K.LParen)
+    val token = take(K.LParen)
     val innerExpression = expression()
     take(K.RParen)
 
@@ -366,7 +366,8 @@ class Parser(val source: SourceFile):
       /* if there isn't an arrow, we evaluate as a parenthesized expression */
       case _ =>
         restore(backupPoint)
-        inParentheses(() => expression())
+        ParenthesizedExpression(inParentheses(() => expression()), 
+          token.get.site.extendedTo(lastBoundary))
 
   /** Parses and returns an operator. */
   private def operator(): Expression =
