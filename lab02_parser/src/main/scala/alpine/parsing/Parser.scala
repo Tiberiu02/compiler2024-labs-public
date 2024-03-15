@@ -279,30 +279,8 @@ class Parser(val source: SourceFile):
     
 
   /** Parses and returns a term-level record expression. */
-  private def recordExpression(): Record = {
-    val label = expect(K.Label)
-    val name = identifier()
-    //val name  = take(K.Identifier)
-
-    peek match {
-      case Some(Token(K.LParen, _)) =>
-        take(K.LParen)
-        val fields = recordExpressionFields()
-        Record(label.site.text.toString, fields, label.site.extendedTo(lastBoundary))
-      case _ =>
-        Record(label.site.text.toString, List(), label.site.extendedTo(lastBoundary))
-    }
-    /*
-    peek match {
-      case Some(Token(K.LBrace, _)) =>
-        val fields = recordExpressionFields()
-        Record(label.site.text.toString, fields, label.site.extendedTo(lastBoundary))
-      case _ =>
-        val fields = List(Labeled(None, identifier(), label.site))
-        Record(label.site.text.toString, fields, label.site.extendedTo(lastBoundary))
-    }
-    */
-  }
+  private def recordExpression(): Record = 
+    record(() => recordExpressionFields(), Record.apply)
 
   /** Parses and returns the fields of a term-level record expression. */
   private def recordExpressionFields(): List[Labeled[Expression]] =
@@ -605,11 +583,11 @@ class Parser(val source: SourceFile):
   private def record[Field <: Labeled[Tree], T <: RecordPrototype[Field]](
       fields: () => List[Field],
       make: (String, List[Field], SourceSpan) => T
-  ): T =
-    val id = take(K.Identifier).get
-    val fieldsList = fields()
-    make(id.site.text.toString, fieldsList, SourceSpan(id.site.file, id.site.start, fieldsList.last.site.end))
-
+  ): T = 
+    val label = expect(K.Label)
+    val fs = inBraces(fields)
+    make(label.site.text.toString, fs, label.site.extendedTo(lastBoundary))
+  
   /** Parses and returns a parenthesized list of labeled value.
    *
    *  See also [[this.labeledList]].
@@ -638,10 +616,11 @@ class Parser(val source: SourceFile):
       // may want to backtrack using restore with the snapshot if the combinator fails 
       val stateBeforeParsing = snapshot()
       val n = take() // could be None
-      if (n.isEmpty) then 
-        // val v = value()
-        // Labeled(None, v, v.site.extendedTo(lastBoundary))
+      if (n.isEmpty) then
         throw FatalError("expected label", emptySiteAtLastBoundary)
+        // restore(stateBeforeParsing)
+        // val v = value()
+        // Labeled(None, v, v.site)
       else
         val m = n.get
         take(K.Colon) match
