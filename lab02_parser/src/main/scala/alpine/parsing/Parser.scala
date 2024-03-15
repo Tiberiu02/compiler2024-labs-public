@@ -548,8 +548,12 @@ class Parser(val source: SourceFile):
   /** Parses and returns a record pattern. */
   private def recordPattern(): RecordPattern =
     val label = expect(K.Label)
-    val fields = inParentheses(() => recordPatternFields())
-    RecordPattern(label.site.text.toString, fields, label.site.extendedTo(lastBoundary))  
+    peek match
+      case Some(Token(K.LParen, _)) =>
+        val fields = inParentheses(() => recordPatternFields())
+        RecordPattern(label.site.text.toString, fields, label.site.extendedTo(lastBoundary))
+      case _ =>
+        RecordPattern(label.site.text.toString, List(), label.site.extendedTo(lastBoundary))
 
   /** Parses and returns the fields of a record pattern. */
   private def recordPatternFields(): List[Labeled[Pattern]] =
