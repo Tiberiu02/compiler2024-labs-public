@@ -285,7 +285,7 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns the fields of a term-level record expression. */
   private def recordExpressionFields(): List[Labeled[Expression]] =
-    inBraces(() => commaSeparatedList(K.RBrace.matches, () => labeled(expression)))
+    inParentheses(() => commaSeparatedList(K.RBrace.matches, () => labeled(expression)))
 
   /** Parses and returns a conditional expression. */
   private[parsing] def conditional(): Expression =
@@ -588,8 +588,7 @@ class Parser(val source: SourceFile):
   ): T = 
     val label = expect(K.Label)
     peek match
-      case Some(Token(K.LBrace, _)) =>
-        //take(K.LBrace)
+      case Some(Token(K.LParen, _)) =>
         val fs = inParentheses(fields)
         make(label.site.text.toString, fs, label.site.extendedTo(lastBoundary))
       case _ =>
