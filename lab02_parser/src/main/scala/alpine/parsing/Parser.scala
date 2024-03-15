@@ -498,7 +498,7 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns a list of type arguments. */
   private def typeArguments(): List[Labeled[Type]] =
-    inAngles(() => commaSeparatedList(K.RAngle.matches, () => labeled(tpe)))
+    inParentheses(() => commaSeparatedList(K.RParen.matches, () => labeled(tpe)))
 
   /** Parses and returns a type-level record expressions. */
   private[parsing] def recordType(): RecordType =
@@ -513,17 +513,20 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns a arrow or parenthesized type-level expression. */
   private[parsing] def arrowOrParenthesizedType(): Type =
-    val backupPoint = snapshot() // create backup snapshot
-    take(K.LParen) // consume left-hand parenthesis 
-    val inputs = typeArguments()
-    take(K.RParen) // consume right-hand parenthesis
-
-    peek match 
+    take(K.LParen)
+    val backupPoint = snapshot()
+    val inTypes = typeArguments()
+    take(K.RParen)
+    peek match
       case Some(Token(K.Arrow, _)) =>
-        restore(backupPoint)
+        val arrowToken = take(K.Arrow).get
+        val outType = tpe()
+        Arrow(inTypes, outType, arrowToken.site.extendedTo(lastBoundary))
       case _ =>
         restore(backupPoint)
-    ???
+        tpe()
+
+
 
   // --- Patterns -------------------------------------------------------------
 
