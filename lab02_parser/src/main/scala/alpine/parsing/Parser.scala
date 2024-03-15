@@ -500,6 +500,7 @@ class Parser(val source: SourceFile):
   /** Parses and returns a type identifier. */
   private def typeIdentifier(): Type =
     val id = expect(K.Identifier)
+
     TypeIdentifier(id.site.text.toString, id.site.extendedTo(lastBoundary))
 
   /** Parses and returns a list of type arguments. */
