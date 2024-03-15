@@ -339,6 +339,29 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns a lambda or parenthesized term-level expression. */
   private def lambdaOrParenthesizedExpression(): Expression =
+    val backupPoint = snapshot()
+    inParentheses(() => ()) // skip parentheses
+
+    peek match 
+      case Some(Token(K.Arrow, _)) | Some(Token(K.LBrace, _)) =>
+        restore(backupPoint)
+        val inputs = valueParameterList()
+        val output = peek match
+          case Some(Token(K.Arrow, _)) =>
+            Some(tpe())
+          case _ => None
+        val token = take(K.LBrace)
+        val innerExpr = expression()
+        take(K.RBrace)
+        Lambda(inputs, output, innerExpr, token.get.site.extendedTo(lastBoundary))
+
+      case _ =>
+        restore(backupPoint)
+        val token = take(K.LParen)
+        ParenthesizedExpression(expression(), 
+          token.get.site.extendedTo(lastBoundary))
+
+    /*
     // move forward until after the last parenthesis
     val backupPoint = snapshot()
     val token = take(K.LParen)
@@ -367,6 +390,7 @@ class Parser(val source: SourceFile):
         restore(backupPoint)
         ParenthesizedExpression(inParentheses(() => expression()), 
           token.get.site.extendedTo(lastBoundary))
+        */
 
   /** Parses and returns an operator. */
   private def operator(): Expression =
