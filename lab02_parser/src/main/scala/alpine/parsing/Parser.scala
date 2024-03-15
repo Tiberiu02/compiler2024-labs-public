@@ -514,7 +514,7 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns a arrow or parenthesized type-level expression. */
   private[parsing] def arrowOrParenthesizedType(): Type =
-    take(K.LParen)
+    val paren = take(K.LParen)
     val backupPoint = snapshot()
     val inTypes = typeArguments()
     take(K.RParen)
@@ -525,9 +525,7 @@ class Parser(val source: SourceFile):
         Arrow(inTypes, outType, arrowToken.site.extendedTo(lastBoundary))
       case _ =>
         restore(backupPoint)
-        tpe()
-
-
+        ParenthesizedType(tpe(), paren.get.site.extendedTo(lastBoundary))
 
   // --- Patterns -------------------------------------------------------------
 
