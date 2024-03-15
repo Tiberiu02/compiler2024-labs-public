@@ -514,7 +514,7 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns a arrow or parenthesized type-level expression. */
   private[parsing] def arrowOrParenthesizedType(): Type =
-    take(K.LParen)
+    val paren = take(K.LParen)
     val backupPoint = snapshot()
     val inTypes = typeArguments()
     take(K.RParen)
@@ -525,9 +525,7 @@ class Parser(val source: SourceFile):
         Arrow(inTypes, outType, arrowToken.site.extendedTo(lastBoundary))
       case _ =>
         restore(backupPoint)
-        tpe()
-
-
+        ParenthesizedType(tpe(), paren.get.site.extendedTo(lastBoundary))
 
   // --- Patterns -------------------------------------------------------------
 
@@ -589,8 +587,13 @@ class Parser(val source: SourceFile):
       make: (String, List[Field], SourceSpan) => T
   ): T = 
     val label = expect(K.Label)
-    val fs = inBraces(fields)
-    make(label.site.text.toString, fs, label.site.extendedTo(lastBoundary))
+    peek match
+      case Some(Token(K.LBrace, _)) =>
+        //take(K.LBrace)
+        val fs = inParentheses(fields)
+        make(label.site.text.toString, fs, label.site.extendedTo(lastBoundary))
+      case _ =>
+        make(label.site.text.toString, List(), label.site.extendedTo(lastBoundary))
   
   /** Parses and returns a parenthesized list of labeled value.
    *
@@ -618,24 +621,55 @@ class Parser(val source: SourceFile):
   ): Labeled[T] =
       // use the functions restore and snapshot
       // may want to backtrack using restore with the snapshot if the combinator fails 
-      val stateBeforeParsing = snapshot()
-      val n = take() // could be None
-      if (n.isEmpty) then
-        throw FatalError("expected label", emptySiteAtLastBoundary)
-        // restore(stateBeforeParsing)
-        // val v = value()
-        // Labeled(None, v, v.site)
-      else
-        val m = n.get
-        take(K.Colon) match
-          case Some(_) =>
-            val v = value()
-            Labeled(Some(m.site.text.toString), v, m.site.extendedTo(lastBoundary))
-          case None =>
-            restore(stateBeforeParsing)
+
+      val stateBeforeAttempt = snapshot()
+
+      peek match
+        case Some(t) =>
+          if t.kind.isKeyword || t.kind == K.Identifier then
+            val n = take().get
+            take(K.Colon) match
+              case Some(_) =>
+                val v = value()
+                Labeled(Some(n.site.text.toString), v, n.site.extendedTo(lastBoundary))
+              case None =>
+                restore(stateBeforeAttempt)
+                val v = value()
+                Labeled(None, v, v.site.extendedTo(lastBoundary))
+          else
             val v = value()
             Labeled(None, v, v.site.extendedTo(lastBoundary))
-        
+
+        case None => 
+          throw new IllegalStateException("peek should not return None")
+          val v = value() // report an error
+          Labeled(None, v, v.site.extendedTo(lastBoundary))
+
+
+      
+
+      ///..............................................
+      // val stateBeforeParsing = snapshot()
+      // val n = take() // could be None
+      // if (n.isEmpty) then
+      //   throw FatalError("expected label", emptySiteAtLastBoundary)
+      //   // restore(stateBeforeParsing)
+      //   // val v = value()
+      //   // Labeled(None, v, v.site)
+      // else
+      //   val m = n.get
+      //   take(K.Colon) match
+      //     case Some(_) =>
+      //       val v = value()
+      //       Labeled(Some(m.site.text.toString), v, m.site.extendedTo(lastBoundary))
+      //     case None =>
+      //       restore(stateBeforeParsing)
+      //       val v = value()
+      //       Labeled(None, v, v.site.extendedTo(lastBoundary))
+      //...............................................
+
+
+
         // if (m.kind.isKeyword || m.kind == K.Identifier) then
         //   val v = value()
         //   // there may be an issue with the columns !
