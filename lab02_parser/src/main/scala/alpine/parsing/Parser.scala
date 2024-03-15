@@ -170,19 +170,14 @@ class Parser(val source: SourceFile):
   /** Parses and returns an expression with an optional ascription. */
   private[parsing] def ascribed(): Expression =
     val prefixExpresion = prefixExpression()
-    
     peek match
-      case Some(token) =>
-        val nextSymbol = peek.get
-        if nextSymbol == K.AtBang || nextSymbol == K.AtQuery || nextSymbol == K.At then
-          val operation = typecast()
-          val typeIdenfitier = typeIdentifier()
+      case Some(Token(K.AtBang, _)) | Some(Token(K.At, _)) | Some(Token(K.AtQuery, _)) =>
+        val operation = typecast()
+        val typeIdenfitier = typeIdentifier()
 
-          AscribedExpression(prefixExpresion, operation, typeIdenfitier, 
-            prefixExpresion.site.extendedTo(lastBoundary))
-        else 
-          prefixExpresion
-      case None =>
+        AscribedExpression(prefixExpresion, operation, typeIdenfitier, 
+          prefixExpresion.site.extendedTo(lastBoundary))
+      case _ =>
         prefixExpresion
 
   /** Parses and returns a prefix application. */
@@ -282,30 +277,8 @@ class Parser(val source: SourceFile):
     
 
   /** Parses and returns a term-level record expression. */
-  private def recordExpression(): Record = {
-    val label = expect(K.Label)
-    val name = identifier()
-    //val name  = take(K.Identifier)
-
-    peek match {
-      case Some(Token(K.LParen, _)) =>
-        take(K.LParen)
-        val fields = recordExpressionFields()
-        Record(label.site.text.toString, fields, label.site.extendedTo(lastBoundary))
-      case _ =>
-        Record(label.site.text.toString, List(), label.site.extendedTo(lastBoundary))
-    }
-    /*
-    peek match {
-      case Some(Token(K.LBrace, _)) =>
-        val fields = recordExpressionFields()
-        Record(label.site.text.toString, fields, label.site.extendedTo(lastBoundary))
-      case _ =>
-        val fields = List(Labeled(None, identifier(), label.site))
-        Record(label.site.text.toString, fields, label.site.extendedTo(lastBoundary))
-    }
-    */
-  }
+  private def recordExpression(): Record = 
+    record(() => recordExpressionFields(), Record.apply)
 
   /** Parses and returns the fields of a term-level record expression. */
   private def recordExpressionFields(): List[Labeled[Expression]] =
@@ -503,7 +476,6 @@ class Parser(val source: SourceFile):
   /** Parses and returns a type identifier. */
   private def typeIdentifier(): Type =
     val id = expect(K.Identifier)
-
     TypeIdentifier(id.site.text.toString, id.site.extendedTo(lastBoundary))
 
   /** Parses and returns a list of type arguments. */
@@ -593,12 +565,11 @@ class Parser(val source: SourceFile):
   private def record[Field <: Labeled[Tree], T <: RecordPrototype[Field]](
       fields: () => List[Field],
       make: (String, List[Field], SourceSpan) => T
-  ): T =
+  ): T = 
     val label = expect(K.Label)
-    val id = take(K.Identifier).get
-    val fieldsList = fields()
-    make(id.site.text.toString, fieldsList, SourceSpan(id.site.file, id.site.start, fieldsList.last.site.end))
-
+    val fs = inBraces(fields)
+    make(label.site.text.toString, fs, label.site.extendedTo(lastBoundary))
+  
   /** Parses and returns a parenthesized list of labeled value.
    *
    *  See also [[this.labeledList]].
@@ -627,10 +598,11 @@ class Parser(val source: SourceFile):
       // may want to backtrack using restore with the snapshot if the combinator fails 
       val stateBeforeParsing = snapshot()
       val n = take() // could be None
-      if (n.isEmpty) then 
-        // val v = value()
-        // Labeled(None, v, v.site.extendedTo(lastBoundary))
+      if (n.isEmpty) then
         throw FatalError("expected label", emptySiteAtLastBoundary)
+        // restore(stateBeforeParsing)
+        // val v = value()
+        // Labeled(None, v, v.site)
       else
         val m = n.get
         take(K.Colon) match
