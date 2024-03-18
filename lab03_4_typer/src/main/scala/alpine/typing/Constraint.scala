@@ -10,11 +10,12 @@ import scala.collection.immutable.HashSet
 import scala.collection.SeqView
 
 /** A constraint on the tree types.
- *
- *  A constraint is a predicate over one or multiple types that must be  satisfied in order for a
- *  program to be well-typed. Constraints are generated during type inference, based on the
- *  structure of the tree to which they relate.
- */
+  *
+  * A constraint is a predicate over one or multiple types that must be
+  * satisfied in order for a program to be well-typed. Constraints are generated
+  * during type inference, based on the structure of the tree to which they
+  * relate.
+  */
 private[typing] sealed trait Constraint:
 
   /** The types related to this constraint, in an arbitrary order. */
@@ -35,7 +36,8 @@ end Constraint
 private[typing] object Constraint:
 
   /** A constraint specifying that two types must be equal. */
-  final case class Equal(lhs: Type, rhs: Type, origin: Origin) extends Constraint:
+  final case class Equal(lhs: Type, rhs: Type, origin: Origin)
+      extends Constraint:
 
     def types: Iterable[Type] =
       IArray(lhs, rhs)
@@ -49,7 +51,8 @@ private[typing] object Constraint:
   end Equal
 
   /** A constraint specifying that the LHS is subtype of the RHS. */
-  final case class Subtype(lhs: Type, rhs: Type, origin: Origin) extends Constraint:
+  final case class Subtype(lhs: Type, rhs: Type, origin: Origin)
+      extends Constraint:
 
     def types: Iterable[Type] =
       IArray(lhs, rhs)
@@ -62,9 +65,14 @@ private[typing] object Constraint:
 
   end Subtype
 
-  /** A constraint specifying that F is an arrow type accepting arguments I and returning O. */
+  /** A constraint specifying that F is an arrow type accepting arguments I and
+    * returning O.
+    */
   final case class Apply(
-      function: Type, inputs: List[Type.Labeled], output: Type, origin: Origin
+      function: Type,
+      inputs: List[Type.Labeled],
+      output: Type,
+      origin: Origin
   ) extends Constraint:
 
     def types: Iterable[Type] =
@@ -75,7 +83,12 @@ private[typing] object Constraint:
       inputs.view.map(_.label)
 
     def withTypeTransformed(f: Type => Type): Constraint =
-      Apply(f(function), inputs.map((i) => Type.Labeled(i.label, f(i.value))), f(output), origin)
+      Apply(
+        f(function),
+        inputs.map((i) => Type.Labeled(i.label, f(i.value))),
+        f(output),
+        origin
+      )
 
     override def toString: String =
       val i = inputs.mkString(", ")
@@ -83,16 +96,26 @@ private[typing] object Constraint:
 
   end Apply
 
-  /** A constraint specifying that LHS is a type with a member M that has type RHS.
-   *
-   *  @param lhs The type of an entity with members.
-   *  @param rhs The type of the selected member.
-   *  @param member The identifier of the selected member.
-   *  @param selection The expression of the member selection.
-   *  @param origin The reason why the constraint is created.
-   */
+  /** A constraint specifying that LHS is a type with a member M that has type
+    * RHS.
+    *
+    * @param lhs
+    *   The type of an entity with members.
+    * @param rhs
+    *   The type of the selected member.
+    * @param member
+    *   The identifier of the selected member.
+    * @param selection
+    *   The expression of the member selection.
+    * @param origin
+    *   The reason why the constraint is created.
+    */
   final case class Member(
-      lhs: Type, rhs: Type, member: String | Int, selection: ast.Expression, origin: Origin
+      lhs: Type,
+      rhs: Type,
+      member: String | Int,
+      selection: ast.Expression,
+      origin: Origin
   ) extends Constraint:
 
     def types: Iterable[Type] =
@@ -106,15 +129,23 @@ private[typing] object Constraint:
 
   end Member
 
-  /** A constraint specifying that a name is a reference to one entity in an overload set.
-   *
-   *  @param name The expression of an overloaded entity reference.
-   *  @param candidates The list of entities to which `name` can possibly refer.
-   *  @param tpe The type of `name`.
-   *  @param origin The reason why the constraint is created.
-   */
+  /** A constraint specifying that a name is a reference to one entity in an
+    * overload set.
+    *
+    * @param name
+    *   The expression of an overloaded entity reference.
+    * @param candidates
+    *   The list of entities to which `name` can possibly refer.
+    * @param tpe
+    *   The type of `name`.
+    * @param origin
+    *   The reason why the constraint is created.
+    */
   final case class Overload(
-      name: ast.Tree, candidates: List[symbols.EntityReference], tpe: Type, origin: Origin
+      name: ast.Tree,
+      candidates: List[symbols.EntityReference],
+      tpe: Type,
+      origin: Origin
   ) extends Constraint:
 
     def types: Iterable[Type] =
@@ -132,7 +163,8 @@ private[typing] object Constraint:
   /** The reason why a constraint was created. */
   final case class Origin(site: SourceSpan, parent: Option[Origin] = None):
 
-    /** The origin of a constraint derived from the constraint caused by `this`. */
+    /** The origin of a constraint derived from the constraint caused by `this`.
+      */
     def subordinate: Origin =
       Constraint.Origin(site, Some(this))
 

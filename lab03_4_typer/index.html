@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Parser</title>
+  <title>Typer</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github.min.css" media="screen" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css" media="screen and (prefers-color-scheme: dark)" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -37,10 +37,9 @@
 <body class="markdown-body">
 <div id="container">
 <main>
-<p class="updated">Last updated on <time datetime=2024-02-28T16:57:10>Wednesday, February 28, 2024</time></p>
-<h1><a href="#lab-02---interpreter" id="lab-02---interpreter">Lab 02 - Interpreter</a></h1>
-<p>Welcome to the Compiler course 2024!</p>
-<p>In this first lab, you will implement an interpreter for the Alpine language, the language for which we will write the entire compiler during the semester.</p>
+<p class="updated">Last updated on <time datetime=2024-03-13T14:36:53>Wednesday, March 13, 2024</time></p>
+<h1><a href="#lab-03---typer" id="lab-03---typer">Lab 03 - Typer</a></h1>
+<p>In this third, you will implement the typer for the Alpine compiler.</p>
 <h2><a href="#obtaining-the-lab-files" id="obtaining-the-lab-files">Obtaining the lab files</a></h2>
 <p>To get the lab files, you have 2 options:</p>
 <ul>
@@ -56,323 +55,356 @@
 <p>Download the zip file on Moodle</p>
 </li>
 </ul>
-<p>Then take your current <code>alpine</code> project, i.e., where you implemented the interpreter, and:</p>
+<p>Then take your current <code>alpine</code> project, i.e., where you implemented the interpreter and the parser, and:</p>
 <ul>
-<li>copy the <code>parsing/</code> directory from this week (either from zip or repo) into your <code>alpine</code> project at this place: <code>src/main/scala/alpine/parsing</code></li>
-<li>copy the <code>util/</code> directory from this week (either from zip or repo) into your <code>alpine</code> project at this place: <code>src/main/scala/alpine/util</code></li>
+<li>copy the <code>typing/</code> directory from this week (either from zip or repo) into your <code>alpine</code> project at this place: <code>src/main/scala/alpine/typing</code></li>
 <li>copy the <code>Main.scala</code> file from this week (either from zip or repo) into your <code>alpine</code> project at this place: <code>src/main/scala/Main.scala</code></li>
 <li>copy the <code>driver/</code> directory from this week (either from zip or repo) into your <code>alpine</code> project at this place: <code>src/main/scala/alpine/driver</code></li>
-<li>copy the new test files by copying the <code>test/parsing</code> directory from this week (either from zip or repo) into your <code>alpine</code> project at this place: <code>src/test/scala/alpine/parsing</code></li>
-<li>copy the <code>test/util/</code> directory from this week (either from zip or repo) into your <code>alpine</code> project at this place: <code>src/test/scala/alpine/util</code></li>
-<li>remove the <code>lib/</code> directory from your <code>alpine</code> project</li>
-<li>move the interpreter tests from <code>src/test/scala/alpine/evaluation</code> to <code>archive/test/evaluation</code>. This is because these tests rely on the typechecking phase of the compiler, that we will implement later in the semester. So we keep them here to add them back later.</li>
+<li>copy the new test files by copying the <code>test/typing</code> directory from this week (either from zip or repo) into your <code>alpine</code> project at this place: <code>src/test/scala/alpine/typing</code></li>
+<li>move the interpreter tests from <code>archive/test/evaluation</code> back to<code>src/test/scala/alpine/evaluation</code>.</li>
 </ul>
 <p>Your project directory structure should look like something like this:</p>
 <pre><code class="language-console">alpine/
-├── archive/
+├── archive/                                 &lt;----- YOU CAN DELETE THIS DIRECTORY
 │   ├── test/
-│   │   ├── evaluation/                     &lt;----- MOVE THE INTERPRETER TESTS HERE  
+│   │   ├── evaluation/                    
 │   │   │   ├── InterpreterTest.scala
-├── lib/                                     &lt;----- DELETE THIS DIRECTORY
 ├── src/
 │   ├── main/
 │   │   ├── scala/
 │   │   │   ├── alpine/
-│   │   │   │   ├── driver/                  &lt;----- COPY FROM THIS WEEK FILES
+│   │   │   │   ├── driver/                  &lt;----- COPY FROM THIS WEEK FILES (replace the current one)
 │   │   │   │   ├── evaluation/
 │   │   │   │   │   ├── Interpreter.scala
-│   │   │   │   ├── parsing/                 &lt;----- COPY FROM THIS WEEK FILES
+│   │   │   │   ├── parsing/                 
 │   │   │   │   │   ├── Parser.scala
 │   │   │   │   │   ├── ...
-│   │   │   │   ├── util/                    &lt;----- COPY FROM THIS WEEK FILES 
+│   │   │   │   ├── typing/                   &lt;----- COPY FROM THIS WEEK FILES
+│   │   │   │   │   ├── Typer.scala
+│   │   │   │   │   ├── ...
+│   │   │   │   ├── util/                    
 │   │   │   │   │   ├── ...
 │   │   │   ├── Main.scala                   &lt;----- COPY FROM THIS WEEK FILES (replace the current one)
 ├── test/
 │   ├── scala/
 │   │   ├── alpine/
-│   │   │   ├── evaluation/                  &lt;----- MOVED TO ARCHIVE
-│   │   │   ├── parsing/                     &lt;----- COPY FROM THIS WEEK FILES
+│   │   │   ├── evaluation/                  &lt;----- MOVE BACK FROM ARCHIVE
+│   │   │   │   ├── InterpreterTest.scala
+│   │   │   ├── parsing/                     
 │   │   │   │   ├── ...
-│   │   │   ├── util/                        &lt;----- COPY FROM THIS WEEK FILES
+│   │   │   ├── typing/                       &lt;----- COPY FROM THIS WEEK FILES
+│   │   │   │   ├── TyperTest.scala
+│   │   │   ├── util/                        
 </code></pre>
 <h2><a href="#submit-your-work" id="submit-your-work">Submit your work</a></h2>
 <p>To submit your work, go to this week assignment on Moodle and upload the following file:</p>
 <ul>
-<li><code>src/main/scala/alpine/parser/Parser.scala</code></li>
+<li><code>src/main/scala/alpine/typing/Typer.scala</code></li>
 </ul>
 <h2><a href="#general-idea-of-the-project" id="general-idea-of-the-project">General idea of the project</a></h2>
 <p>Let&rsquo;s recall the global idea of a simple compiler&rsquo;s pipeline:</p>
 <pre><code>Source code -&gt; Lexer -&gt; Parser -&gt; Type checking -&gt; Assembly generation
 </code></pre>
-<p>The lexer will generate a sequence of tokens from the source code. The parser will generate an AST from the sequence of tokens.</p>
-<p>Let consider an example:</p>
-<pre><code class="language-swift">let main = exit(1)
-</code></pre>
-<p>The lexer will generate the following sequence of tokens:</p>
-<pre><code class="language-scala">List(
-  Let(0: 3), // let
-  Identifier(4: 8), // main
-  Eq(9: 10), // = 
-  Identifier(11: 15), // exit
-  LParen(15: 16), // (
-  Integer(16: 17), // 1
-  RParen(17: 18) // )
-)
-</code></pre>
-<p><code>Let</code>, <code>Identifier</code>, <code>Eq</code>, <code>LParen</code>, <code>Integer</code>, <code>RParen</code> are tokens. The first element of each tuple is the position of the token in the source code.</p>
-<p>The parser will generate the following AST:</p>
-<pre><code class="language-scala">List(
-  Binding(
-    main, // identifier
-    None, // type
-    Some( // initializer
-      Application( // function call
-        Identifier(exit, hello.al: 1: 12 - 1: 16),
-        List( // arguments
-          Labeled(
-            None,
-            IntegerLiteral(1, hello.al: 1: 17 - 1: 18),
-            hello.al: 1: 17 - 1: 18
-          )
-        ),
-        hello.al: 1: 12 - 1: 19
-      )
-    ),
-    hello.al: 1: 1 - 1: 19
-  )
-)
-</code></pre>
-<p>The AST is more expressive than the sequence of tokens as it represents the structure of the source code.</p>
-<h2><a href="#general-structure-of-the-parser-and-the-codebase" id="general-structure-of-the-parser-and-the-codebase">General structure of the parser and the codebase</a></h2>
-<p>The parser consummes a sequence of tokens as a stream to produce an AST.</p>
-<p>The parsing is composed of multiple functions. Each function is responsible for parsing a specific part of the grammar. For example, the <code>binding</code> function is responsible for parsing a binding.</p>
-<p>Here is the available API to implement the parser:</p>
+<p>During this lab, you will implement the type checking phase of the Alpine compiler. Note that it does three things:</p>
 <ul>
-<li><code>peek</code>: looks at the next token without consuming it.
+<li>It checks that the program is well-typed, i.e. that the types of the expressions are consistent with the types of the variables, the types of the functions (including the fact that the function is called with the right number of arguments and that the types of the arguments are consistent with the types of the parameters), and the types of the constants.</li>
+<li>It also infers the types of expressions that do not have a type ascription, i.e. it computes the type of each expression and stores it in the AST.</li>
+<li>It also perform “name resolution”: every variable and function call should be resolved to a unique definition (this is the <code>referredEntity</code> field from the interpreter lab.) For example, if the program contains two function definitions <code>fun f(x: Int) -&gt; Int { ... }</code> and <code>fun f(x: Float) -&gt; Float { ... }</code>, then the call <code>f(42)</code> should be resolved to one of the two definitions. The choice of the definition depends on the type of the argument <code>42</code>.</li>
+</ul>
+<h3><a href="#supported-language-features" id="supported-language-features">Supported language features</a></h3>
+<p>The type checker supports all the features described in the language description (i.e., in this <a href="&quot;language_desc.md&quot;">file</a>), EXCEPT the <em><strong>Type declarations</strong></em>. This means, your typer does not have to handle the constructs of the form</p>
+<pre><code class="language-swift">type T = Int
+type ListInt = #nil | #cons(head: Int, tail: ListInt)
+</code></pre>
+<p>Specifically, the subset of the language that the typer will handle does NOT include recursive types.</p>
+<h3><a href="#basics" id="basics">Basics</a></h3>
+<p>The typer will be implemented in the <code>Typer.scala</code> file. It will visit the AST and return the computed/discovered types after having checked their consistence.</p>
+<h4><a href="#constraints" id="constraints">Constraints</a></h4>
+<p>To solve the typing problem, we will generate a set of constraints and solve them using the provided <code>Solver</code>.</p>
+<p>Here are the available constraints that the solver can handle:</p>
 <ul>
-<li>it returns either <code>Some(token)</code> or <code>None</code> if the stream is empty (i.e. we reach an EOF).</li>
+<li><code>Equal(lhs: Type, rhs: Type, origin: Origin)</code>: the left hand side and the right hand side should have the same type.</li>
+<li><code>Subtype(lhs: Type, rhs: Type, origin: Origin)</code>: the left hand side should be a subtype of the right hand side.</li>
+<li><code>Apply(function: Type, inputs: List[Type.Labeled], output: Type, origin: Origin)</code>: the function should be a function type with the given inputs and output types.</li>
+<li><code>Member(lhs: Type, rhs: Type, member: String | Int, selection: Expression, origin: Origin)</code>: the left hand side should have a member with the type <code>rhs</code>, i.e., something of the <code>lhs.member: rhs</code>. <code>selection</code> is the expression of the member selection.</li>
+<li><code>Overload(name: Tree, candidates: List[EntityReference], tpe: Type, origin: Origin)</code>: this constraint is responsible of the name analysis mentioned above. The name should be the name of entity (e.g., a function names) that can refer to multiple entities. All those entities are passed in  <code>candidates</code>. This constraint indicates to the solver that one of the entity in the list should have the type <code>tpe</code>. The <code>Solver</code> will then pick the right entity if it exists. This is how the <code>Typer</code> will resolve the ambiguity of the function call <code>f(42)</code> mentioned above.</li>
+</ul>
+<p>The origin is the AST node that generated this constraint (this is to show a meaningful error to the user in case the constraint cannot be solved).</p>
+<p>All of those constraints are stored in an instance of the <code>ProofObligations</code> class that will be passed to the solver.</p>
+<p>To add new constraints you can use:</p>
+<ul>
+<li><code>context.obligations.constrain(e, type)</code> to add an equality constraint that the expression <code>e</code> should have type <code>type</code>. This function also returns the currently inferred type of <code>e</code>.</li>
+<li><code>context.obligations.add(constraint)</code> to add a constraint <code>constraint</code> to the obligations (any type of constraint, unlike the other possible function).</li>
+</ul>
+<h4><a href="#fresh-type-variables" id="fresh-type-variables">Fresh type variables</a></h4>
+<p>When infering types, it is not always possible to know the type of an expression when encountering it. For example, let us take the following code:</p>
+<pre><code class="language-swift">let a = 1
+let x = if (a &lt;= 0) { #person(name: &quot;Jean&quot;) } else { #person(name: &quot;Jean&quot;, age: a) }
+</code></pre>
+<p>In this case, when typing the <code>if</code> expression, we cannot fix the type of the <code>then</code> and <code>else</code> branches. This is because we do not know the type of <code>x</code> (we are inferring it), and we only know that the type of an <code>if</code> expression is a <em>supertype</em> of the types of the <code>then</code> and <code>else</code> branches.</p>
+<p>So to infer the type of <code>x</code>, we assign it a <em>fresh type variable</em> $\tau$, and we add constraint for this type. The <code>Solver</code> is then responsible to find a type for $\tau$ that satisfies all the constraints.</p>
+<p>To generate a fresh type variable, please use the <code>freshTypeVariable()</code> method.</p>
+<h4><a href="#visitor" id="visitor">Visitor</a></h4>
+<p>We have provided the implementations of the <code>visit</code> function of identifiers and literals, as well as for the pattern matching. You will have to implement the <code>visit</code> functions for the other AST nodes.</p>
+<pre><code class="language-scala">def visitBooleanLiteral(e: ast.BooleanLiteral)(using context: Typer.Context): Type =
+  context.obligations.constrain(e, Type.Bool)
+
+def visitIntegerLiteral(e: ast.IntegerLiteral)(using context: Typer.Context): Type =
+  context.obligations.constrain(e, Type.Int)
+
+def visitFloatLiteral(e: ast.FloatLiteral)(using context: Typer.Context): Type =
+  context.obligations.constrain(e, Type.Float)
+
+def visitStringLiteral(e: ast.StringLiteral)(using context: Typer.Context): Type =
+  context.obligations.constrain(e, Type.String)
+</code></pre>
+<p>In each of these methods, we add a new constraint that the visited AST node is of type <code>Type.Bool</code>, <code>Type.Int</code>, <code>Type.Float</code> or <code>Type.String</code> respectively.</p>
+<pre><code class="language-scala">def visitIdentifier(e: ast.Identifier)(using context: Typer.Context): Type =
+  bindEntityReference(e, resolveUnqualifiedTermIdentifier(e.value, e.site))
+</code></pre>
+<p>In this method, we make calls to:</p>
+<ul>
+<li><code>resolveUnqualifiedTermIdentifier</code> to resolve the identifier to a list of possible entities. This step will find all the entities that the identifier can refer to. For example, if the identifier is <code>f</code>, it will return all the functions that are named <code>f</code>.</li>
+<li><code>bindEntityReference(e: ast.Tree, candidates: List[EntityReference])</code> to bind the AST node to the resolved entities
+<ul>
+<li>if there is no candidates, then the type of <code>e</code> is <code>Type.Error</code></li>
+<li>if there is a single candidate, then the type of <code>e</code> is the type of the candidate. Moreover, it links the AST node to the candidate using the <code>properties.treeToReferredEntity</code> map.</li>
+<li>if there is more than a single candidate, then a new fresh type variable $\tau$ is created and the AST node is linked to the type variable $\tau$. Moreover, a new <code>Overload</code> constraint is added to the obligations to say that the type of <code>e</code> is the type of one of the candidates. Also, a constraint is added to say that the type of <code>e</code> is $\tau$.</li>
 </ul>
 </li>
-<li><code>take()</code>: consumes the next token
-<ul>
-<li>it returns either <code>Some(token)</code> or <code>None</code> if the stream is empty (i.e. we reach an EOF), and consumes a token from the stream.</li>
 </ul>
-</li>
-<li><code>takeIf(pred: Token =&gt; Boolean)</code>: takes a predicate, and consumes and returns the next token <strong>if it satisfies the predicate</strong></li>
-<li><code>take(k: Token.Kind)</code>: shorthand for <code>takeIf(_.kind == k)</code></li>
-<li><code>expect(k: Token.Kind)</code>: shorthand for <code>take(k)).getOrElse(throw FatalError(…))</code>
-<ul>
-<li>i.e. it takes the next token and throws an error if it is not the expected kind of token.</li>
-</ul>
-</li>
-<li><code>expect(construct: String, pred: Token =&gt; Boolean)</code>: same as <code>expect</code> but takes a construct to include in the error message.</li>
-<li><code>report</code>: reports an error while parsing.</li>
-<li><code>backup</code>: saves the current state of the parser</li>
-<li><code>restore</code> : restores the state of the parser to a backup returned by <code>backup</code></li>
-</ul>
-<h3><a href="#new-elements-of-the-language" id="new-elements-of-the-language">New elements of the language</a></h3>
-<p>Throughout the lab, we will see new elements of the language.</p>
-<h4><a href="#types" id="types">Types</a></h4>
-<p>In <em>Alpine</em>, you can create type declarations:</p>
-<pre><code class="language-swift">type Vector2 =
-  #vector2(x: Float, y: Float)
-type Circle =
-  #circle(origin: Vector2, radius: Float)
-type Rectangle =
-  #rectangle(origin: Vector2, dimension: Vector2)
-</code></pre>
-<p>There is also closed union types (also known as a sum type):</p>
-<pre><code class="language-swift">type OptionInt = #none | #some(Int)
-</code></pre>
-<p>In this case, a value of type <code>OptionInt</code> can be either a <code>#none</code> or a <code>#some(Int)</code>.</p>
-<p>You can also define recursive types:</p>
-<pre><code class="language-swift">type List = #empty | #list(head: Any, tail: List)
-</code></pre>
-<p>For reference, the grammar is provided inside the <a href="./grammar.md"><code>grammar.md</code></a>/<a href="./grammar.html"><code>grammar.html</code></a> file.</p>
-<h2><a href="#implementation" id="implementation">Implementation</a></h2>
-<h3><a href="#some-hints" id="some-hints">Some hints</a></h3>
-<p>The parser is written in composing functions, that each parses a part of the grammar.</p>
-<p>For example, let&rsquo;s have a look at the <code>primarayExpression()</code> function. This function <code>peek</code> at the next token, and depending on its nature, calls the appropriate function to parse the corresponding producing rule of the grammar.</p>
-<div class='snippet'>
-<pre><code class="language-scala">private[parsing] def primaryExpression(): Expression =
-  peek match
-    case Some(Token(K.Identifier, s)) =&gt;
-      identifier()
-    case Some(Token(K.True, _)) =&gt;
-      booleanLiteral()
-    case Some(Token(K.False, _)) =&gt;
-      booleanLiteral()
-    case Some(Token(K.Integer, _)) =&gt;
-      integerLiteral()
-    case Some(Token(K.Float, _)) =&gt;
-      floatLiteral()
-    case Some(Token(K.String, _)) =&gt;
-      stringLiteral()
-    case Some(Token(K.Label, _)) =&gt;
-      recordExpression()
-    case Some(Token(K.If, _)) =&gt;
-      conditional()
-    case Some(Token(K.Match, _)) =&gt;
-      mtch()
-    case Some(Token(K.Let, _)) =&gt;
-      let()
-    case Some(Token(K.LParen, _)) =&gt;
-      lambdaOrParenthesizedExpression()
-    case Some(t) if t.kind.isOperatorPart =&gt;
-      operator()
-    case _ =&gt;
-      recover(ExpectedTree(&quot;expression&quot;, emptySiteAtLastBoundary), ErrorTree.apply)
-</code></pre>
-<p class='snippet-path'>src/main/scala/alpine/parsing/Parser.scala</p>
-</div>
-<p>In general, each function parses a producing rule of the grammar (see <a href="./grammar.md"><code>grammar.md</code></a>).</p>
-<p>An important thing to understand and be careful with is when a token is peeked and when it is taken. This is an important aspect of the parser, so think about it before starting to implement.</p>
-<p>Some of the functions in the parser are high order parsers: this means that they take another parser as argument. For example, <code>commaSeparatedList</code> takes a parser as argument and returns a parser that parses a list of elements separated by commas.</p>
-<p>One last interesting aspect about our pipeline is that some operators are not tokenized by the tokenizer. For example, <code>&gt;=</code> is tokenized as two tokens <code>&gt;</code> and <code>=</code>. This is because the <code>&gt;</code> can be used in other contexts (s.t. <code>List&lt;Int&gt;</code>). Therefore, the parser is responsible from handling this case and create the operator or not depending on the context. This is an important technique in the world of compilers.</p>
-<h3><a href="#your-task-implement-the-parser" id="your-task-implement-the-parser">Your Task: Implement the Parser</a></h3>
-<p>We suggest to start implementing by <code>conditional()</code>.</p>
-<h4><a href="#some-hints-about-how-to-parse-the-grammar" id="some-hints-about-how-to-parse-the-grammar">Some hints about how to parse the grammar</a></h4>
-<p>This section contains a non-exhaustive list of hints to help you parse and understand the grammar.</p>
-<h5><a href="#compound-expressions-compoundexpression" id="compound-expressions-compoundexpression">Compound expressions <code>compoundExpression()</code></a></h5>
-<p>Look at the grammar and we can see that a compound expression is primary expression followed by a &lsquo;.&rsquo;, a &lsquo;(&rsquo;, or nothing. Here are some examples and the corresponding type of the node produced by the parser when the primary expression is followed by &lsquo;.&rsquo;:</p>
-<ul>
-<li><code>#record(a: 1).1</code>: <code>Selection</code></li>
-<li><code>#record(a: 1).a</code>: <code>Selection</code></li>
-<li><code>#record(a: 1).+</code>: <code>Selection</code></li>
-</ul>
-<h5><a href="#prefix-expressions-prefixexpression" id="prefix-expressions-prefixexpression">Prefix expressions <code>prefixExpression()</code></a></h5>
-<p>TODO Marwan unclear</p>
-<pre><code class="language-grammar">prefixExpression := compoundExpression | Identifier(operator)
-</code></pre>
-<p>A prefix expression checks if the next token is an operator. <strong>If there is no space between the operator and the next token</strong> (see <code>noWhitespaceBeforeNextToken</code>), parse the prefix operator and the compound expression that follows. It returns a <code>PrefixApplication</code> AST node. The fact we have to check for white space presence shows us that this gammar is not a context-free grammar.</p>
-<p>If there is no whitespace, then it returns directly the operator (recall: it&rsquo;s an <code>Identifier</code>.)</p>
-<p>In the case where it is not an operator, it will parse the compound expression.</p>
-<h5><a href="#ascribedexpression" id="ascribedexpression"><code>ascribedExpression()</code></a></h5>
-<p>An ascribed expression is a prefix expression followed by an optional type cast. It returns a <code>AscribedExpression</code> AST node if there is a type cast, otherwise just a prefix expression. You can use the <code>typecast</code> function.</p>
-<h5><a href="#infixexpression-and-expression" id="infixexpression-and-expression"><code>infixExpression</code> and <code>expression()</code></a></h5>
-<p>As we saw in the lecture, parsing expressions requires care because of the ambiguity introduced by precedence.</p>
-<p>Notice that infixEpression takes a precendence as input: you may use it this parameter to factor out the parsing of all possible infix expressions with different precedence levels.</p>
-<p>You may take inspiration from the precedence climbing algorithm to parse infix expressions. See <a href="&quot;https://en.wikipedia.org/wiki/Operator-precedence_parser#Precedence_climbing_method&quot;">the Wikipedia article</a> for more information.</p>
-<h5><a href="#literals" id="literals">Literals</a></h5>
-<p>To get the text a token contain, you can use the <code>.site.text</code> method.</p>
-<h5><a href="#labeled" id="labeled"><code>labeled(…)</code></a></h5>
-<p>A <code>Labeled[T]</code> is a value of type <code>T</code> (as in Scala) with an optional <code>String</code> denoting its label.</p>
-<p>In <em>Alpine</em>, a <code>Labeled[T]</code> can be:</p>
-<ul>
-<li><code>&lt;value&gt;</code></li>
-<li><code>&lt;label&gt;: &lt;value&gt;</code></li>
-</ul>
-<p><em>Hint</em>: you may find the <code>backup</code> and <code>restore</code> methods useful.</p>
-<p><em>Note</em>: as stated in the grammar, a <code>&lt;label&gt;</code> can be an <code>&lt;identifier&gt;</code> or a <code>&lt;keyword&gt;</code>.</p>
-<h5><a href="#inparentheses-inbraces-inangles" id="inparentheses-inbraces-inangles"><code>inParentheses</code>, <code>inBraces</code>, <code>inAngles</code></a></h5>
-<p>Complete the three different functions that parses an <code>element</code> delimited by parentheses (<code>(&lt;element&gt;)</code>), braces (<code>{&lt;element&gt;}</code>) and angles (<code>&lt;&gt;</code>)</p>
-<h5><a href="#parenthesizedlabeledlistvalue---t-listlabeledt" id="parenthesizedlabeledlistvalue---t-listlabeledt"><code>parenthesizedLabeledList(value: () =&gt; T): List[Labeled[T]]</code></a></h5>
-<p>This function parses a list of labeled values delimited by parentheses. The list can be empty.</p>
-<p>For example, the above function is responsible to parse the following code:</p>
-<pre><code class="language-swift">(1, 2, label: 3)
-</code></pre>
-<p>The functions <code>inParentheses</code>, <code>labeled</code> are useful to implement this function.</p>
-<h5><a href="#records" id="records">Records</a></h5>
-<p>In this part, you should implement <code>recordExpression()</code>, <code>recordExpressionFields()</code> and <code>record(fields: () =&gt; List[Field], make: (String, List[Field], …) =&gt; T)</code></p>
-<ul>
-<li>
-<p>The <code>record</code> function is responsible for parsing a record. It returns a <code>T</code> AST node. In the case of parsing record expressions, <code>T</code> is <code>ast.Record</code>. It is general and will be used as well for <code>recordType</code>s</p>
-</li>
-<li>
-<p><code>recordExpression()</code> is a function used to parse a record expression. It returns a <code>Record</code> AST node.</p>
-</li>
-<li>
-<p>The <code>recordExpressionFields()</code> function is responsible for parsing the fields of a record expression. It returns a <code>List[Labeled[Expression]]</code> AST node.</p>
-</li>
-</ul>
-<div class="hint">
-<p>Do forget that you can reuse parser functions you already implemented so far.</p>
-</div>
-<p>It should parse the following sub grammar:</p>
-<pre><code>RecordExpression := '#' Identifier ['(' LabeledExpressionList ')']
-</code></pre>
-<div class="note">
-<p>An identifier with a <code>#</code> prefix is a special token called <code>Label</code>.</p>
-<p>Note as well that <code>Field</code> is a generic type! It should be of subtype <code>Labeled[Tree]</code> and <code>Labeled</code> is covariant. It will come handy when we will parse record types.</p>
-</div>
-<h5><a href="#conditionals-conditional" id="conditionals-conditional">Conditionals <code>conditional()</code></a></h5>
-<p><code>if &lt;expression&gt; then &lt;expression&gt; else &lt;expression&gt;</code></p>
-<p>which correspond to:</p>
-<p><code>IfExpression := 'if' Expression 'then' Expression 'else' Expression</code> in the grammar.</p>
-<p>The <code>if</code> function has necessarily to have an <code>else</code> branch. The <code>else</code> branch is mandatory in <em>Alpine</em>.</p>
-<h5><a href="#tpe" id="tpe"><code>tpe()</code></a></h5>
-<p>The <code>tpe</code> function is responsible for parsing a type. It returns a <code>Type</code> AST node. For the fact, <code>tpe</code> is called <code>tpe</code> because <code>type</code> is a reserved keyword in Scala.</p>
-<p><code>tpe</code> should parse the <code>Type</code> given the grammar above. You can call the <code>primaryType</code> function to parse a <code>PrimaryType</code>.</p>
-<h5><a href="#recordtype-and-recordtypefields" id="recordtype-and-recordtypefields"><code>recordType()</code> and <code>recordTypeFields()</code></a></h5>
-<p>Now, implement the <code>recordType</code> and <code>recordTypeFields</code> functions. They are responsible for parsing a record type and its fields. They should return a <code>RecordType</code> and a <code>List[Labeled[Type]]</code> respectively.</p>
-<p>In the same manner as <code>recordExpression</code> and <code>recordExpressionFields</code>, <code>recordType</code> should call the <code>record</code> function.</p>
-<h5><a href="#arroworparenthesizedtype" id="arroworparenthesizedtype"><code>arrowOrParenthesizedType()</code></a></h5>
-<p>When encountering a <code>(</code> token, it can be either a function&rsquo;s type or a parenthesized type. This function should parse the two cases and return the corresponding AST node.</p>
-<p>It should parse both cases:</p>
-<ul>
-<li>Parenthesized type (<code>ParenthesizedType</code>):</li>
-</ul>
-<pre><code>(&lt;type&gt;)
-</code></pre>
-<p>and</p>
-<ul>
-<li>Arrow/Lambda type:</li>
-</ul>
-<pre><code>(&lt;type1&gt;, &lt;type2&gt;, …, &lt;typeN&gt;) -&gt; &lt;type&gt;
-</code></pre>
-<h5><a href="#bindings--let" id="bindings--let">Bindings &amp; let</a></h5>
-<h6><a href="#binding" id="binding"><code>binding()</code></a></h6>
-<p>A binding is a top-level declaration that binds an identifier to a value. It has the following form:</p>
-<pre><code>let &lt;identifier&gt; [':' &lt;type&gt;] [= expression]
-</code></pre>
-<p>where <code>[: &lt;type&gt;]</code> and <code>[= expression]</code> is not always optional: the argument <code>initializerIsExpected</code> is <code>true</code> if the initializer is expected (i.e. not optional) and <code>false</code> otherwise (i.e. optional): it may come handy for later! Implement the <code>binding()</code> function that parses a binding.</p>
-<h5><a href="#functions-function-valueparameterlist-parameter" id="functions-function-valueparameterlist-parameter">Functions: <code>function()</code>, <code>valueParameterList()</code>, <code>parameter()</code></a></h5>
-<h5><a href="#parameter" id="parameter"><code>parameter()</code></a></h5>
-<p>A parameter is of the form:</p>
-<pre><code>&lt;identifier&gt; &lt;identifier&gt; [: &lt;type&gt;] // labeled
-'_' &lt;identifier&gt; [: &lt;type&gt;] // unlabeled
-&lt;keyword&gt; &lt;identifier&gt; [: &lt;type&gt;] // labeled by keyword
-</code></pre>
-<p>When labeled by a keyword, the keyword is the label.</p>
-<p>When labeled, the parameter&rsquo;s name (i.e. its identifier inside the function) is the second identifier.</p>
-<p>When unlabeled, the parameter&rsquo;s name is the first and only identifier.</p>
-<p>Implement the <code>parameter</code> function that parses a parameter. It returns a <code>Parameter</code> AST node.</p>
-<p><em>Note</em>: here the label is before the identifier without any separator token. It is not the case for <code>labeled</code> where the label is separated by a colon with the identifier.</p>
-<h6><a href="#valueparameterlist" id="valueparameterlist"><code>valueParameterList()</code></a></h6>
-<p>A value parameter list is a list of parameters. It has the following form:</p>
-<pre><code>( &lt;parameter1&gt;, … )
-</code></pre>
-<p>Implement the <code>valueParameterList</code> function that parses a value parameter list. It returns a <code>List[Parameter]</code> AST node.</p>
-<h5><a href="#function" id="function"><code>function()</code></a></h5>
-<p>A function is of the form:</p>
-<pre><code>fun &lt;identifier&gt; (&lt;type parameters&gt;) [-&gt; &lt;type&gt;] { &lt;expression&gt; }
-</code></pre>
-<p>where <code>[-&gt; &lt;type&gt;]</code> is optional. Implement the <code>function</code> function that parses a function. It returns a <code>Function</code> AST node.</p>
-<h3><a href="#lambdaorparenthesizedexpression" id="lambdaorparenthesizedexpression"><code>lambdaOrParenthesizedExpression()</code></a></h3>
-<p>When encountering a <code>(</code> token, it can be either a lambda or a parenthesized expression. This function should parse the two cases and return the corresponding AST node.</p>
-<p>It should parse both cases:</p>
-<pre><code>(&lt;expression&gt;)
-</code></pre>
-<p>and</p>
-<pre><code>(&lt;value parameter list&gt;) -&gt; { &lt;expression&gt; }
-</code></pre>
-<h5><a href="#match-expressions" id="match-expressions">Match expressions</a></h5>
-<p>A match expression is a conditional expression that matches a value against a set of patterns. It has the following form:</p>
-<pre><code class="language-swift">match &lt;expression&gt; {
-  case &lt;pattern&gt; then &lt;expression&gt;
+<p>Note that there is some useful functions in the <code>Typer</code> class that you can use to generate fresh type variables, get the type of an entity, check if a type is a subtype of another, etc.</p>
+<h3><a href="#scope" id="scope">Scope</a></h3>
+<p>In programming, the <em>Scope</em> of a binding is defined as follows:</p>
+<blockquote>
+<p>[The ] scope is &ldquo;the portion of source code in which a binding of a name with an entity applies&rdquo;.</p>
+</blockquote>
+<p>For example, in the following code:</p>
+<pre><code class="language-swift">fun f(x: Int) -&gt; Int {
+  let y = 42 {
+    x + y
+  }
+}
+let main = let z = 1 {
+  f(z)
 }
 </code></pre>
-<p>Let&rsquo;s decompose this pattern into smaller parts as we did for the other elements of the language.</p>
-<h6><a href="#mtch" id="mtch"><code>mtch()</code></a></h6>
-<p>The <code>mtch</code> function is responsible for parsing a match expression. It returns a <code>Match</code> AST node. It expects a <code>match</code> token, an expression and then calls <code>matchBody</code> to parse the body of the match expression.</p>
-<h6><a href="#pattern-with-wildcard-recordpattern-bindingpattern-and-valuepattern" id="pattern-with-wildcard-recordpattern-bindingpattern-and-valuepattern"><code>pattern()</code> with <code>wildcard()</code>, <code>recordPattern()</code>, <code>bindingPattern()</code> and <code>valuePattern()</code></a></h6>
-<p>The four functions are responsible for parsing a pattern. They return a <code>Pattern</code> AST node.</p>
+<p>the scope of the binding of <code>y</code> is  the body of the <code>let</code> binding, so:</p>
+<pre><code class="language-swift">{
+  x + y
+}
+</code></pre>
+<p>and the scope ot the binding of <code>x</code> is the body of the function <code>f</code>, so:</p>
+<pre><code class="language-swift">{
+  let y = 42 {
+    x + y
+  }
+}
+</code></pre>
+<h3><a href="#running-the-type-checker" id="running-the-type-checker">Running the type checker</a></h3>
+<p>Inside SBT, you can use the <code>run -t &lt;input file&gt;</code> command to run the type checker on a file. You can also add the <code>--type-inference</code> flag to show the solving part of the type checker (so including the constraints and the solution).</p>
+<h3><a href="#how-is-overloading-solved" id="how-is-overloading-solved">How is overloading solved?</a></h3>
+<p>Let us recall that overloading is the ability to have multiple functions with the same name but different types. For example, in the following code:</p>
+<pre><code class="language-swift">fun f(x: Int) -&gt; Int { x }
+fun f(x: Float) -&gt; Float { x }
+</code></pre>
+<p>the function <code>f</code> is overloaded. When the type checker encounters a call to <code>f</code>, it should resolve the call to one of the two functions. This is what the <code>Overload</code> constraint is for.</p>
+<p>Overloading is resolved by the <code>Solver</code> class. For every <code>Overload</code> constraint and their candidates, the solver forks itself and tries to solve the other constraints with each candidate (i.e., type checking the program assuming the candidate is the right one). If one of the forks fails, the solver backtracks and tries with the next candidate. If all the forks fail, the solver reports an error. And if one of the forks succeeds, the solver returns the solution.</p>
+<p>If you run the compiler with the <code>--trace-inference</code> flag with a piece of code that contains some overload, you will see that the solver tries to solve the constraints with each candidate.</p>
+<h3><a href="#memoization" id="memoization">Memoization</a></h3>
+<p>You can see some calls to <code>memoizedUncheckedType</code>. Its role is to store the type of a tree node in an <em>unchecked</em> map. This means the type is temporary, but not checked yet.</p>
+<p>This is used for recursive functions: the type of the function is stored in this map, so that the body can be typechecked while &ldquo;knowing&rdquo; the type of the function itself (for possible recursive calls). This is also used for recursive types, but we do not handle them in this lab.</p>
+<p>This is also used for memoization, i.e., not recomputing the type of a tree multiple times.</p>
+<h3><a href="#hints-and-inference-rules" id="hints-and-inference-rules">Hints and inference rules</a></h3>
+<p>Below are listed hints about the visit functions you have to implement, along with the inference rules of the alpine type system.</p>
+<h4><a href="#visitrecorde-astrecord" id="visitrecorde-astrecord"><code>visitRecord(e: ast.Record)</code></a></h4>
+<p>$$\frac{
+\Gamma \vdash e_1 : \tau_1 \quad \Gamma e_2 : \tau_  \Gamma \quad \dots \quad \Gamma e_n \quad \Gamma: \tau_n
+}{
+\char&quot;23 a(a_1: e_1, a_2: e_2, \dots, a_n: e_n): \char&quot;23 a(a_1: \tau_1, a_2: \tau_2, \dots, a_n :\tau_n)
+}$$</p>
+<p>where $\char&quot;23 a$ is the record name and $a_1$, …, $a_n$ are the labels.</p>
+<p>For each field of the record, you should visit recursively the expression of the field to get field types.</p>
+<p><em>Note</em>: Math mode can be buggy on GitHub Markdown if the above rule is not properly displayed. You can download the .html file and open it in your browser to see it properly! Or open the Markdown file inside your editor. All <code>\char&quot;23</code> should be displayed as <code>#</code>.</p>
+<h4><a href="#visitapplicatione-astapplication" id="visitapplicatione-astapplication"><code>visitApplication(e: ast.Application)</code></a></h4>
+<p>Two constraints should be addeed:</p>
 <ul>
-<li><code>wildcard</code> should parse the <code>_</code> token.</li>
-<li><code>valuePattern</code> should parse an <code>expression</code> and return a <code>ValuePattern</code> AST node.</li>
-<li><code>bindingPattern</code> should parse a <code>binding()</code> without an initializer!</li>
-<li><code>recordPattern</code> should call the <code>record</code> function and return a <code>RecordPattern</code> AST node. Don&rsquo;t forget that you&rsquo;ve made a function to parse records! However, it is required to fill the <code>recordPatternFields()</code> function.</li>
+<li><code>Apply</code>: the application is valid.</li>
+<li><code>e</code>: should have the type $\tau$</li>
 </ul>
+<p>$$
+\frac{
+\Gamma \vdash f: ((l_1: \tau_1, l_2: \tau_2, \dots, l_n: \tau_n) \to \tau) \quad \Gamma e_1: \tau_1 \quad  \Gamma e_2: \tau_2 \quad \dots \quad \Gamma e_n: \tau_n
+}{
+\Gamma \vdash f(l_1: e_1, l_2: e_2, \dots, l_n: e_n): \tau
+}
+$$</p>
+<p>This means that if $f$ has type $(l_1: \tau_1, l_2: \tau_2, \dots, l_n: \tau_n) \to \tau$, and $e_1$ has type $\tau_1$, $e_2$ has type $\tau_2$, etc., then the application has type $\tau$.</p>
+<p>You should get the type of the function and of the labeled arguments. If the output type of the function is not known, you should generate a fresh type variable for it. Otherwise, $\tau$ is the output type of the function.</p>
+<h4><a href="#visitprefixapplication--visitinfixapplication" id="visitprefixapplication--visitinfixapplication"><code>visitPrefixApplication</code> / <code>visitInfixApplication</code></a></h4>
+<p>The idea is simlar to the <code>visitApplication</code> method. Keep in mind that infix and prefix applications do not have labels and their number of arguments is fixed (1 for prefix and 2 for infix).</p>
+<p>Prefix applications:</p>
+<p>$$
+\frac{
+\Gamma \vdash f: \tau_1 \to \tau  \quad \Gamma e: \tau_1
+}{
+\Gamma \vdash f(e): \tau
+}
+$$</p>
+<p>Infix applications:</p>
+<p>$$
+\frac{
+\Gamma \vdash f: (\tau_1, \tau_2) \to \tau, e_1: \tau_1, e_2: \tau_2
+}{
+\Gamma \vdash f(e_1, e_2): \tau
+}
+$$</p>
+<h4><a href="#visitconditionale-astconditional" id="visitconditionale-astconditional"><code>visitConditional(e: ast.Conditional)</code></a></h4>
+<div class="hint">
+<p>Check the <code>checkInstanceOf</code> function.</p>
+</div>
+<p>The type of a conditional is $\tau$ which is a supertype of the type of the <code>then</code> branch and the type of the <code>else</code> branch. The condition must be a <code>Boolean</code>. Generate fresh variables if needed.</p>
+<p>$$
+\frac{
+\Gamma \vdash e_1: \text{Boolean }, e_2: \tau_2, e_3: \tau_3, \tau &gt;: \tau_2, \tau &gt;: \tau_3
+}{
+\Gamma \vdash \text{if } e_1 \text{ then } e_2 \text{ else } e_3: \tau
+}
+$$</p>
+<h4><a href="#visitlete-astlet" id="visitlete-astlet"><code>visitLet(e: ast.Let)</code></a></h4>
+<p>$$
+\frac{
+\Gamma \vdash e: \tau, ,,\Gamma,x \mapsto e \vdash e_r: \tau_r
+}{
+\Gamma \vdash \text{let } x: \tau = e ,{ e_r }: \tau_r
+}
+$$</p>
+<p>You must assign a new scope name using the <code>assignScopeName</code> method, and visit the <code>binding</code> and the body with this new scope name.</p>
+<h4><a href="#visitlambdae-astlambda" id="visitlambdae-astlambda"><code>visitLambda(e: ast.Lambda)</code></a></h4>
+<p>You should assign a new scope name for that lambda and in that scope, you should get the type of the inputs (using <code>computedUncheckedInputTypes</code>)</p>
+<p>In the same manner as the application, get the output type of the lambda or generate a fresh variable, and add the following constraints:</p>
+<ul>
+<li><code>e</code> should be of type <code>Type.Arrow</code>.</li>
+<li>the body should be a subtype of the output type of the lambda.</li>
+</ul>
+<p>$$
+\frac{
+\Gamma x_1: \tau_1, \ldots, x_n: \tau_n \vdash e &lt;: \tau
+}{
+\Gamma : (l_1: x_1: \tau_1, \ldots, l_n: x_n: \tau_n) ,{\color{green} \to \tau} ,{ e } : ((l_1: \tau_1, \ldots, l_n: \tau_n) \to \tau)
+}
+$$</p>
+<p>where the first ${\color{green} \to \tau}$ is optional.</p>
+<h4><a href="#visitparenthesizedexpression" id="visitparenthesizedexpression"><code>visitParenthesizedExpression</code></a></h4>
+<p>$$
+\frac{\Gamma \vdash e : \tau}{\Gamma \vdash (e): \tau}
+$$</p>
+<h4><a href="#evaluatetypetree" id="evaluatetypetree"><code>evaluateTypeTree</code></a></h4>
+<p>When encoutering a specified type, you should call <code>evaluateTypeTree</code>.</p>
+<h4><a href="#visitascribedexpressione-astascribedexpression" id="visitascribedexpressione-astascribedexpression"><code>visitAscribedExpression(e: ast.AscribedExpression)</code></a></h4>
+<p>You should evaluate the <code>ascription</code> field of the <code>AscribedExpression</code> using <code>evaluateTypeTree</code> and depending on the ascription. Then add needed constraints, depending on the ascription sort:</p>
+<!-- * if it's a widening ascription, the expression type should be a subtype of the type given in the ascription.
+* if it's a narrowing unconditionally ascription, use `checkedTypeEnsuringConvertible` to check that the type of the expression is a subtype of the type given in the ascription, and return the type given in the ascription.
+* if it's a narrowing ascription, use `checkedTypeEnsuringConvertible` to check that the type of the expression is a subtype of the type given in the ascription, and return the optional type that corresponds to it. -->
+<p>$$
+\frac{\Gamma \vdash e &lt;: \tau}{\Gamma \vdash e , @ ,\tau : \tau}
+$$
+$$
+\frac{\Gamma \vdash e :&gt; \tau}{\Gamma \vdash e , @! ,\tau : \tau} \text{ while ensuring convertibility}
+$$
+$$
+\frac{\Gamma \vdash}{\Gamma \vdash e , @? ,\tau : \text{Option}[\tau]}
+$$</p>
+<h4><a href="#meta-types" id="meta-types">Meta-types</a></h4>
+<p>Metatypes are the types of types. For example, in an alpine program, the type <code>Int</code> in <code>let x : Int = 42 { ... }</code> has the type <code>MetaType[Int]</code>. This is useful to type check an expression where a type is expected, for example in a type ascription or arrow types.</p>
+<h4><a href="#visittypeidentifiere-asttypeidentifier" id="visittypeidentifiere-asttypeidentifier"><code>visitTypeIdentifier(e: ast.TypeIdentifier)</code></a></h4>
+<p>You should lookup the type identifier in the current scope:</p>
+<ol>
+<li>if there is no type with that name, return <code>Type.Error</code> and report an error.</li>
+<li>if there is a single type with that name, return the meta-type corresponding to the type (<code>Type.Meta</code>).</li>
+<li>if there is more than a single type with that name, return a <code>Type.Error</code> and report an ambiguous use of the type.</li>
+</ol>
+<div class="hint">
+<p>Check the provided functions.</p>
+</div>
+<h4><a href="#visitrecordtype" id="visitrecordtype"><code>visitRecordType</code></a></h4>
+<p>You should return the type of the record type, which is a <code>Type.Record</code> with proper fields.</p>
+<p>$$
+\frac{
+\Gamma \vdash \tau_1: \text{Meta}[\text{Labeled}] \quad \ldots \quad \Gamma \tau_n: \text{Meta}[\text{Labeled}] \quad \Gamma\tau_r: \text{Meta}[\tau_r]
+}{
+\Gamma \vdash \char&quot;23 a(\tau_1, \ldots, \tau_n) \to \tau_r
+}
+$$</p>
+<p>Note that $\tau_1$, …, $\tau_n$ are labelled types.</p>
+<h4><a href="#visitarrow" id="visitarrow"><code>visitArrow</code></a></h4>
+<p>You should return the type of the arrow type, which is a <code>Type.Arrow</code> with proper inputs and output.</p>
+<p>$$
+\frac{
+\Gamma \vdash \tau_1: \text{Meta}[\text{Labeled}] \quad \ldots \quad \Gamma \tau_n: \text{Meta}[\text{Labeled}] \quad \Gamma\tau_r: \text{Meta}[\tau_r]
+}{
+\Gamma \vdash (\tau_1, \ldots, \tau_n) \to \tau_r
+}
+$$</p>
+<p>Note that $\tau_1$, …, $\tau_n$ are labelled types.</p>
+<h4><a href="#visitparenthesizedtype" id="visitparenthesizedtype"><code>visitParenthesizedType</code></a></h4>
+<p>$$
+\frac{
+\Gamma \vdash \tau: \text{Meta}[\tau_{in}]
+}{
+\Gamma \vdash (\tau) \to \text{Meta}[\tau_{in}]
+}
+$$</p>
+<h4><a href="#visitrecordpattern" id="visitrecordpattern"><code>visitRecordPattern</code></a></h4>
+<p>On the same principle as the <code>visitRecord</code> method and <code>visitValuePattern</code>, you should add a constraint for the type of the pattern.</p>
+<p>$$
+\frac{\Gamma \vdash}{
+\Gamma \vdash \char&quot;23 a(l_1: p_1, \ldots, l_n: p_n): \char&quot;23 a(l_1: \tau_1, \ldots, l_n: \tau_n)
+}
+$$</p>
+<p>where $\char&quot;23 a$ is the record name and $l_1$, …, $l_n$ are the labels.</p>
+<h4><a href="#visitwildcard" id="visitwildcard"><code>visitWildcard</code></a></h4>
+<p>$$
+\frac{\Gamma \vdash}{
+\Gamma \vdash _ : \tau
+}
+$$</p>
+<h4><a href="#visitfunction" id="visitfunction"><code>visitFunction</code></a></h4>
+<p>$$
+\frac{
+\Gamma, x_1: \tau_1, \ldots, x_n: \tau_n \vdash e &lt;: \tau
+}{
+\Gamma \vdash (\text{fun } f(x_1: \tau_1, \ldots, x_n: \tau_n) \to \tau { e }) : (l_1: x_1: \tau_1, \ldots, l_n: x_n: \tau_n) \to \tau
+}
+$$</p>
+<p>You should get the unchecked type of the function and memoize it. You should then type check the body and it must be a subtype of the output type of the function.</p>
+<h4><a href="#visitsum" id="visitsum"><code>visitSum</code></a></h4>
+<p>The function is provided, but here is the inference rule:</p>
+<p>$$
+\frac{
+\Gamma \vdash e: \tau_i
+}{
+\Gamma \vdash e: \tau_1 | \tau_2 | \ldots | \tau_i | \dots | \tau_n
+}
+$$</p>
+<h4><a href="#visitselection" id="visitselection"><code>visitSelection</code></a></h4>
+<p>A selection can be performed on a record with an identifier or an integer. You should add a <code>Member</code> constraint.</p>
+<p>For the integer selector:</p>
+<p>$$
+\frac{
+\Gamma \vdash e: \char&quot;23 a(l_1: \tau_1, \dots, l_n:\tau_n)
+}{
+\Gamma \vdash e.i: \tau_i
+}
+$$</p>
+<p>For the identifier selector:</p>
+<p>$$
+\frac{
+\Gamma \vdash e: \char&quot;23 a(l_1: \tau_1, \dots, l_n:\tau_n)
+}{
+\Gamma \vdash e.l_i: \tau_i
+}
+$$</p>
 
 </main>
 </div>
