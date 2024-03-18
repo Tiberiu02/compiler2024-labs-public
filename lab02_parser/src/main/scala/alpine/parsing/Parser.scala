@@ -136,36 +136,44 @@ class Parser(val source: SourceFile):
    * You may take inspiration from the precedence climbing algorithm to parse infix expressions.
    *  **/
   private[parsing] def infixExpression(precedence: Int = ast.OperatorPrecedence.min): Expression =
-    def rec(lhs: Expression, prec: Int): Expression =
+    // helper function for that algorithm on wiki
+    def helper(preced: Int, lhs: Expression): Expression =
       peek match
         case Some(Token(K.Operator, _)) =>
-          val opid1 = operatorIdentifier()
-          val op1 = opid1._1.get
+          val opId1 = operatorIdentifier()
           val rhs = ascribed()
-          val id1 = Identifier(op1.toString, opid1._2)
-          if op1.precedence >= prec then
+          if opId1._1.get.precedence >= preced then
+
             peek match
               case Some(Token(K.Operator, _)) =>
-                val snap = snapshot()
-                val opid2 = operatorIdentifier()
-                restore(snap)
-                val op2 = opid2._1.get
-                if op2.precedence > op1.precedence then
-                  val updatedrhs = rec(rhs, op2.precedence)
-                  InfixApplication(id1, lhs, updatedrhs, lhs.site.extendedToCover(updatedrhs.site))
+                val backupPoint = snapshot()
+                val opId2 = operatorIdentifier()
+                restore(backupPoint)
+
+                if opId2._1.get.precedence > opId1._1.get.precedence then
+                  val updatedrhs = helper(opId2._1.get.precedence, rhs)
+
+                  InfixApplication(Identifier(opId1._1.get.toString, opId1._2), 
+                    lhs, updatedrhs, lhs.site.extendedToCover(updatedrhs.site))
                 else
-                  val updatedlhs = InfixApplication(id1, lhs, rhs, lhs.site.extendedToCover(rhs.site))
-                  rec(updatedlhs, op2.precedence)
+                  val newLhs = InfixApplication(Identifier(opId1._1.get.toString, opId1._2), lhs, rhs, 
+                    lhs.site.extendedToCover(rhs.site))
+                  helper(opId2._1.get.precedence, newLhs)
+
               case _ =>
-                InfixApplication(id1, lhs, rhs, lhs.site.extendedToCover(rhs.site))
+                InfixApplication(Identifier(opId1._1.get.toString, opId1._2), 
+                  lhs, rhs, lhs.site.extendedToCover(rhs.site))
+
           else 
-            val updatedlhs = InfixApplication(id1, lhs, rhs, lhs.site.extendedToCover(rhs.site))
-            rec(updatedlhs, op1.precedence)
+            val newLhs = InfixApplication(Identifier(opId1._1.get.toString, opId1._2), 
+              lhs, rhs, lhs.site.extendedToCover(rhs.site))
+
+            helper(opId1._1.get.precedence, newLhs)
 
         case _ =>
           lhs
             
-    rec(ascribed(), precedence)
+    helper(precedence, ascribed())
 
   
      
@@ -216,8 +224,6 @@ class Parser(val source: SourceFile):
         Application(e, l, e.site.extendedTo(lastBoundary))
       case _ =>
         e
-
-    
 
   /** Parses and returns a term-level primary exression.
    *
@@ -339,33 +345,26 @@ class Parser(val source: SourceFile):
 
   /** Parses and returns a lambda or parenthesized term-level expression. */
   private def lambdaOrParenthesizedExpression(): Expression =
-    // move forward until after the last parenthesis
     val backupPoint = snapshot()
-    val token = take(K.LParen)
-    val innerExpression = expression()
-    take(K.RParen)
+    inParentheses(() => ()) // skip parentheses
 
-    peek match
-      /* if there is an arrow, we evaluate as a lambda */
-      case Some(Token(K.Arrow, _)) =>
+    peek match 
+      case Some(Token(K.Arrow, _)) | Some(Token(K.LBrace, _)) =>
         restore(backupPoint)
-        take(K.LParen)
         val inputs = valueParameterList()
-        take(K.RParen)
-        
-        // check if there was a provided type
-        val outputType = peek match 
-          case Some(Token(K.LBrace, _)) =>
-            None
-          case _ =>
+        val output = peek match
+          case Some(Token(K.Arrow, _)) =>
             Some(tpe())
+          case _ => None
+        val token = take(K.LBrace)
+        val innerExpr = expression()
+        take(K.RBrace)
+        Lambda(inputs, output, innerExpr, token.get.site.extendedTo(lastBoundary))
 
-        val body = expression()
-        Lambda(inputs, outputType, body, body.site.extendedTo(lastBoundary))
-      /* if there isn't an arrow, we evaluate as a parenthesized expression */
       case _ =>
         restore(backupPoint)
-        ParenthesizedExpression(inParentheses(() => expression()), 
+        val token = take(K.LParen)
+        ParenthesizedExpression(expression(), 
           token.get.site.extendedTo(lastBoundary))
 
   /** Parses and returns an operator. */
@@ -548,19 +547,28 @@ class Parser(val source: SourceFile):
   /** Parses and returns a record pattern. */
   private def recordPattern(): RecordPattern =
     val label = expect(K.Label)
-    val fields = inBraces(() => recordPatternFields())
-    RecordPattern(label.site.text.toString, fields, label.site.extendedTo(lastBoundary))  
+    peek match
+      case Some(Token(K.LParen, _)) =>
+        val fields = inParentheses(() => recordPatternFields())
+        RecordPattern(label.site.text.toString, fields, label.site.extendedTo(lastBoundary))
+      case _ =>
+        RecordPattern(label.site.text.toString, List(), label.site.extendedTo(lastBoundary))
 
   /** Parses and returns the fields of a record pattern. */
   private def recordPatternFields(): List[Labeled[Pattern]] =
-    inBraces(() => commaSeparatedList(K.RBrace.matches, () => labeled(pattern)))
+    inParentheses(() => commaSeparatedList(K.RParen.matches, () => labeled(pattern)))
 
   /** Parses and returns a binding pattern. */
   private def bindingPattern(): Binding =
     take(K.Let)
     val id = expect(K.Identifier)
     val tp = if take(K.Colon) != None then Some(tpe()) else None
-    Binding(id.site.text.toString, tp, None, id.site.extendedTo(lastBoundary))
+    val hasInit = take(K.Eq)
+    if !hasInit.isEmpty then
+      report(ExpectedTokenError(K.Eq, emptySiteAtLastBoundary))
+      Binding(id.site.text.toString, tp, None, id.site.extendedTo(lastBoundary))
+    else
+      Binding(id.site.text.toString, tp, None, id.site.extendedTo(lastBoundary))
 
   /** Parses and returns a value pattern. */
   private def valuePattern(): ValuePattern =
@@ -642,50 +650,6 @@ class Parser(val source: SourceFile):
           throw new IllegalStateException("peek should not return None")
           val v = value() // report an error
           Labeled(None, v, v.site.extendedTo(lastBoundary))
-
-
-      
-
-      ///..............................................
-      // val stateBeforeParsing = snapshot()
-      // val n = take() // could be None
-      // if (n.isEmpty) then
-      //   throw FatalError("expected label", emptySiteAtLastBoundary)
-      //   // restore(stateBeforeParsing)
-      //   // val v = value()
-      //   // Labeled(None, v, v.site)
-      // else
-      //   val m = n.get
-      //   take(K.Colon) match
-      //     case Some(_) =>
-      //       val v = value()
-      //       Labeled(Some(m.site.text.toString), v, m.site.extendedTo(lastBoundary))
-      //     case None =>
-      //       restore(stateBeforeParsing)
-      //       val v = value()
-      //       Labeled(None, v, v.site.extendedTo(lastBoundary))
-      //...............................................
-
-
-
-        // if (m.kind.isKeyword || m.kind == K.Identifier) then
-        //   val v = value()
-        //   // there may be an issue with the columns !
-        //   Labeled(Some(m.site.text.toString), v, m.site.extendedTo(lastBoundary))
-        // else
-        //   restore(stateBeforeParsing)
-        //   val v = value()
-        //   Labeled(None, v, v.site.extendedTo(lastBoundary)) 
-    // peek match
-    //   case Some(n) if n.kind.isKeyword || n.kind == K.Identifier =>
-    //     take()
-    //     take(K.Colon)
-    //     val v = value()
-    //     Labeled(Some(n.site.text.toString), v, n.site.extendedTo(lastBoundary))
-    //   case _ => 
-    //     //restore(stateBeforeAttempt)
-    //     val v = value()
-    //     Labeled(None, v, v.site)
 
   /** Parses and returns a sequence of `element` separated by commas and delimited on the RHS  by a
    *  token satisfying `isTerminator`.
