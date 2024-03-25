@@ -9,6 +9,8 @@ import alpine.util.{Memo, FatalError}
 
 import scala.annotation.tailrec
 import scala.collection.mutable
+import alpine.typing.Constraint.Subtype
+import alpine.ast.Typecast
 
 // Visiting a declaration == type checking it
 // Visiting an expression == type inference
@@ -302,13 +304,36 @@ final class Typer(
       case Type.Error =>
         Type.Error
       case ascription =>
-        ???
+        e.operation match
+          case Typecast.Widen =>
+            ???
+          case Typecast.Narrow =>
+            ???
+          case Typecast.NarrowUnconditionally =>
+            ???
+
     context.obligations.constrain(e, result)
 
   def visitTypeIdentifier(e: ast.TypeIdentifier)(using
       context: Typer.Context
   ): Type =
-    ???
+    resolveUnqualifiedTermIdentifier(e.value, e.site) match 
+      case x :: Nil => 
+        x.tpe match
+          case Type.Meta(instance) =>
+            instance
+          case _ =>
+            Type.Error
+      case x :: xs => 
+        report(
+          TypeError("Ambiguous type identifier", e.site)
+        )
+        Type.Error
+      case _ =>
+        report(
+          TypeError("No type found matching passed type identifier", e.site),
+        )
+        Type.Error
 
   def visitRecordType(e: ast.RecordType)(using context: Typer.Context): Type =
     ???
