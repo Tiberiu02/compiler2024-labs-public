@@ -336,7 +336,8 @@ final class Typer(
         Type.Error
 
   def visitRecordType(e: ast.RecordType)(using context: Typer.Context): Type =
-    ???
+    val labeledTypes = e.fields.map(f => Type.Labeled(f.label, f.value.visit(this)))
+    Type.Record(e.identifier, labeledTypes)
 
   def visitTypeApplication(e: ast.TypeApplication)(using
       context: Typer.Context
