@@ -109,13 +109,17 @@ final class Typer(
     val t: Type = context.inScope(
       d,
       { (inner) =>
-        ???
+        val out = d.output.get.visit(this)
+        memoizedUncheckedType(d, (_) => out) // EG not sure about this
+        checkInstanceOf(d.body, out)
+        out
       }
     )
 
     val result = if t(Type.Flags.HasError) then Type.Error else t
     properties.checkedType.put(d, result)
     result
+
   def visitParameter(d: ast.Parameter)(using context: Typer.Context): Type =
     addToParent(d)
     assignNameDeclared(d)
@@ -379,7 +383,7 @@ final class Typer(
   def visitParenthesizedType(e: ast.ParenthesizedType)(using
       context: Typer.Context
   ): Type =
-    ???
+    e.inner.visit(this)
 
   def visitValuePattern(p: ast.ValuePattern)(using
       context: Typer.Context
@@ -389,10 +393,18 @@ final class Typer(
   def visitRecordPattern(p: ast.RecordPattern)(using
       context: Typer.Context
   ): Type =
-    ???
+    context.obligations.constrain(
+      p,
+      Type.Record(
+        p.identifier,
+        p.fields.map(l => {
+          Type.Labeled(l.label, l.value.visit(this))
+        })
+      )
+    )
 
   def visitWildcard(p: ast.Wildcard)(using context: Typer.Context): Type =
-    ???
+    freshTypeVariable() // returns a new type since we can match with anything
 
   def visitTypeDeclaration(e: ast.TypeDeclaration)(using
       context: Typer.Context
