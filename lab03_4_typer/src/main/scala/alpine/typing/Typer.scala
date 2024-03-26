@@ -11,6 +11,7 @@ import scala.annotation.tailrec
 import scala.collection.mutable
 import alpine.typing.Constraint.Subtype
 import alpine.ast.Typecast
+import alpine.symbols.Type.Record
 
 // Visiting a declaration == type checking it
 // Visiting an expression == type inference
@@ -172,10 +173,21 @@ final class Typer(
 
     e.selectee match
       case s: ast.Identifier =>
-        ???
+        context.obligations.constrain(e, m) 
       case s: ast.IntegerLiteral =>
-        ???
-    context.obligations.constrain(e, m)
+        context.obligations.constrain(e, m) 
+
+
+
+    // val q = e.qualification.visit(this)
+    // val m = freshTypeVariable()
+
+    // e.selectee match
+    //   case s: ast.Identifier =>
+    //     ???
+    //   case s: ast.IntegerLiteral =>
+    //     ???
+    // context.obligations.constrain(e, m)
 
   def visitApplication(e: ast.Application)(using context: Typer.Context): Type =
     val f = e.function.visit(this)
@@ -310,11 +322,19 @@ final class Typer(
       case ascription =>
         e.operation match
           case Typecast.Widen =>
-            ???
+            val u = e.inner.visit(this)
+            context.obligations.add(
+              Constraint.Subtype(u, ascription, Constraint.Origin(e.site))
+            )
+            ascription
           case Typecast.Narrow =>
-            ???
+            val u = e.inner.visit(this)
+            context.obligations.add(
+              Constraint.Subtype(ascription, u, Constraint.Origin(e.site))
+            )
+            ascription
           case Typecast.NarrowUnconditionally =>
-            ???
+            ascription
 
     context.obligations.constrain(e, result)
 
@@ -349,7 +369,9 @@ final class Typer(
     throw FatalError("unsupported generic parameters", e.site)
 
   def visitArrow(e: ast.Arrow)(using context: Typer.Context): Type =
-    ???
+    val inputs = e.inputs.map((i) => Type.Labeled(i.label, i.value.visit(this)))
+    val output = e.output.visit(this)
+    Type.Arrow(inputs, output)
 
   def visitSum(e: ast.Sum)(using context: Typer.Context): Type =
     var hasErrorMember = false
