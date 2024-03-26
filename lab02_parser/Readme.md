@@ -1,5 +1,6 @@
 # Lab 02 - Parser
 
+
 In this second lab, you will implement the parser for the Alpine compiler.
 
 ## Obtaining the lab files
@@ -76,15 +77,16 @@ Let's recall the global idea of a simple compiler's pipeline:
 Source code -> Lexer -> Parser -> Type checking -> Assembly generation
 ```
 
-The lexer will generate a sequence of tokens from the source code. The parser will generate an AST from the sequence of tokens.
+The lexer generates a sequence of tokens from the source code.
+The parser generates an AST from the sequence of tokens.
 
-Let consider an example:
+For example, consider the following program:
 
 ```swift
 let main = exit(1)
 ```
 
-The lexer will generate the following sequence of tokens:
+The lexer generates the following sequence of tokens:
 
 ```scala
 List(
@@ -98,9 +100,10 @@ List(
 )
 ```
 
-`Let`, `Identifier`, `Eq`, `LParen`, `Integer`, `RParen` are tokens. The first element of each tuple is the position of the token in the source code.
+`Let`, `Identifier`, `Eq`, `LParen`, `Integer`, `RParen` are tokens.
+The number in parentheses denote the positions in the source text from which the token has been parsed, as 0-based indices in an array of code points.
 
-The parser will generate the following AST:
+Given this token stream, the parser generates the following AST:
 
 ```scala
 List(
@@ -129,11 +132,9 @@ The AST is more expressive than the sequence of tokens as it represents the stru
 
 ## General structure of the parser and the codebase
 
-The parser consummes a sequence of tokens as a stream to produce an AST.
-
-The parsing is composed of multiple functions. Each function is responsible for parsing a specific part of the grammar. For example, the `binding` function is responsible for parsing a binding.
-
-Here is the available API to implement the parser:
+Parsing is decomposed into multiple functions, each of them responsible for parsing a specific part of the grammar.
+For example, the method `binding` is responsible for parsing binding trees, like the one shown in the previous section.
+All of these parsing functions use the following core API:
 
 * `peek`: looks at the next token without consuming it.
   * it returns either `Some(token)` or `None` if the stream is empty (i.e. we reach an EOF).
@@ -145,8 +146,11 @@ Here is the available API to implement the parser:
   * i.e. it takes the next token and throws an error if it is not the expected kind of token.
 * `expect(construct: String, pred: Token => Boolean)`: same as `expect` but takes a construct to include in the error message.
 * `report`: reports an error while parsing.
-* `backup`: saves the current state of the parser
-* `restore` : restores the state of the parser to a backup returned by `backup`
+* `snapshot`: returns the current state of the parser
+* `restore` : restores the state of the parser from a backup returned by `snapshot`
+
+Observer how these methods are used in the parts of the code that have been provided to get a sense of how they can be used.
+In particular, pay attention to the way `peek` and `take` (and its variants) are used.
 
 ### New elements of the language
 
@@ -187,7 +191,7 @@ For reference, the grammar is provided inside the [`grammar.md`](./grammar.md)/[
 
 The parser is written in composing functions, that each parses a part of the grammar.
 
-For example, let's have a look at the `primarayExpression()` function. This function `peek` at the next token, and depending on its nature, calls the appropriate function to parse the corresponding producing rule of the grammar.
+For example, let's have a look at the `primaryExpression()` function. This function `peek` at the next token, and depending on its nature, calls the appropriate function to parse the corresponding producing rule of the grammar.
 
 <div class='snippet'>
 
@@ -246,27 +250,32 @@ This section contains a non-exhaustive list of hints to help you parse and under
 
 Look at the grammar and we can see that a compound expression is primary expression followed by a '.', a '(', or nothing. Here are some examples and the corresponding type of the node produced by the parser when the primary expression is followed by '.':
 
-* `#record(a: 1).1`: `Selection`
-* `#record(a: 1).a`: `Selection`
-* `#record(a: 1).+`: `Selection`
+* `#record(a: 1).1`: `Selection(Record(…), IntegerLiteral(1, …))`
+* `#record(a: 1).a`: `Selection(Record(…), Identifier("a", …))`
+* `#record(a: 1).+`: `Selection(Record(…), Identifier("+", …))`
+* `a.b`: `Selection(Identifier("a", …), Identifier("b", …)`
 
 ##### Prefix expressions `prefixExpression()`
 
-TODO Marwan unclear
-
 ```grammar
-prefixExpression := compoundExpression | Identifier(operator)
+PrefixExpression -> InfixOp | InfixOp CompoundExpression | CompoundExpression
 ```
 
 A prefix expression checks if the next token is an operator. **If there is no space between the operator and the next token** (see `noWhitespaceBeforeNextToken`), parse the prefix operator and the compound expression that follows. It returns a `PrefixApplication` AST node. The fact we have to check for white space presence shows us that this gammar is not a context-free grammar.
 
-If there is no whitespace, then it returns directly the operator (recall: it's an `Identifier`.)
+If there is a whitespace, then it returns directly the operator (recall: it's an `Identifier`.)
 
-In the case where it is not an operator, it will parse the compound expression.
+In the case where it is not an operator, it will parse the compound expression (so call the `compoundExpression()` function.)
 
-##### `ascribedExpression()`
+##### `ascribed()`
 
 An ascribed expression is a prefix expression followed by an optional type cast. It returns a `AscribedExpression` AST node if there is a type cast, otherwise just a prefix expression. You can use the `typecast` function.
+
+Example:
+
+* `a @ Int`: `AscribedExpression(Identifier("a", …), Typecast.Widen, TypeIdentifier("Int", _), _)`
+* `1 @ Int`: `AscribedExpression(IntegerLiteral(1, …), Typecast.Widen, TypeIdentifier("Int", _), _)`
+* `1`: `IntegerLiteral(1, …)` (returned by the `prefixExpression` function)
 
 ##### `infixExpression` and `expression()`
 
@@ -274,7 +283,7 @@ As we saw in the lecture, parsing expressions requires care because of the ambig
 
 Notice that infixEpression takes a precendence as input: you may use it this parameter to factor out the parsing of all possible infix expressions with different precedence levels.
 
-You may take inspiration from the precedence climbing algorithm to parse infix expressions. See [the Wikipedia article]("https://en.wikipedia.org/wiki/Operator-precedence_parser#Precedence_climbing_method") for more information.
+You may take inspiration from the precedence climbing algorithm to parse infix expressions. See [the Wikipedia article](https://en.wikipedia.org/wiki/Operator-precedence_parser#Precedence_climbing_method) for more information.
 
 ##### Literals
 
@@ -289,9 +298,15 @@ In _Alpine_, a `Labeled[T]` can be:
 * `<value>`
 * `<label>: <value>`
 
-_Hint_: you may find the `backup` and `restore` methods useful.
+_Hint_: you may find the `snapshot` and `restore` methods useful.
 
 _Note_: as stated in the grammar, a `<label>` can be an `<identifier>` or a `<keyword>`.
+
+_Examples_:
+
+* `label: 1` → `Labeled(Some("label"), IntegerLiteral(1, …))`
+* `match: 1` → `Labeled(Some("match"), IntegerLiteral(1, …))`
+* `1` → `Labeled(None, IntegerLiteral(1, …))`
 
 ##### `inParentheses`, `inBraces`, `inAngles`
 
@@ -307,11 +322,11 @@ For example, the above function is responsible to parse the following code:
 (1, 2, label: 3)
 ```
 
-The functions `inParentheses`, `labeled` are useful to implement this function.
+_Hint_: `inParentheses`, `labeled` and `commaSeparatedList` are useful to implement this function.
 
 ##### Records
 
-In this part, you should implement `recordExpression()`, `recordExpressionFields()` and `record(fields: () => List[Field], make: (String, List[Field], …) => T)`
+In this part, we will break down the record parsing. You should implement `recordExpression()`, `recordExpressionFields()` and `record(fields: () => List[Field], make: (String, List[Field], …) => T)`
 
 * The `record` function is responsible for parsing a record. It returns a `T` AST node. In the case of parsing record expressions, `T` is `ast.Record`. It is general and will be used as well for `recordType`s
 
@@ -328,14 +343,14 @@ Do forget that you can reuse parser functions you already implemented so far.
 It should parse the following sub grammar:
 
 ```
-RecordExpression := '#' Identifier ['(' LabeledExpressionList ')']
+Record -> '#' Identifier  ['(' LabeledExpressionList ')']
 ```
 
 <div class="note">
 
 An identifier with a `#` prefix is a special token called `Label`.
 
-Note as well that `Field` is a generic type! It should be of subtype `Labeled[Tree]` and `Labeled` is covariant. It will come handy when we will parse record types.
+Note as well that `Field` in `record(…)` is a generic type! It should be of subtype `Labeled[Tree]` and `Labeled` is covariant. It will come handy when we will parse record types.
 
 </div>
 
@@ -345,7 +360,7 @@ Note as well that `Field` is a generic type! It should be of subtype `Labeled[Tr
 
 which correspond to:
 
-```IfExpression := 'if' Expression 'then' Expression 'else' Expression``` in the grammar.
+```IfExpression -> 'if' Expression 'then' Expression 'else' Expression``` in the grammar.
 
 The `if` function has necessarily to have an `else` branch. The `else` branch is mandatory in _Alpine_.
 
@@ -363,7 +378,7 @@ In the same manner as `recordExpression` and `recordExpressionFields`, `recordTy
 
 ##### `arrowOrParenthesizedType()`
 
-When encountering a `(` token, it can be either a function's type or a parenthesized type. This function should parse the two cases and return the corresponding AST node.
+When encountering a `(` token, it can be either a function's type or a parenthesized type (a parenthesized type is a type between parentheses). This function should parse the two cases and return the corresponding AST node.
 
 It should parse both cases:
 
@@ -388,10 +403,10 @@ and
 A binding is a top-level declaration that binds an identifier to a value. It has the following form:
 
 ```
-let <identifier> [':' <type>] [= expression]
+Binding -> 'let' Identifier [':' Type] ['=' Expression]
 ```
 
-where `[: <type>]` and `[= expression]` is not always optional: the argument `initializerIsExpected` is `true` if the initializer is expected (i.e. not optional) and `false` otherwise (i.e. optional): it may come handy for later! Implement the `binding()` function that parses a binding.
+where `[':' Type]` and `['=' Expression]` is not always optional: the argument `initializerIsExpected` is `true` if the initializer is expected (i.e. not optional) and `false` otherwise (i.e. optional): it may come handy for later! Implement the `binding()` function that parses a binding.
 
 ##### Functions: `function()`, `valueParameterList()`, `parameter()`
 
@@ -405,15 +420,16 @@ A parameter is of the form:
 <keyword> <identifier> [: <type>] // labeled by keyword
 ```
 
-When labeled by a keyword, the keyword is the label.
-
-When labeled, the parameter's name (i.e. its identifier inside the function) is the second identifier.
-
-When unlabeled, the parameter's name is the first and only identifier.
+In the first case, the first element is the label of the parameter (can be an identifier, `_` or a keyword) and the second element is the name of the argument. When labeled by a keyword, the keyword is the label. When labeled, the parameter's name (i.e. its identifier inside the function) is the second identifier. When unlabeled (i.e. `_` is the label), the parameter's name is the first and only identifier.
 
 Implement the `parameter` function that parses a parameter. It returns a `Parameter` AST node.
 
 _Note_: here the label is before the identifier without any separator token. It is not the case for `labeled` where the label is separated by a colon with the identifier.
+
+* Examples: 
+  * `_ x: Int`: `Parameter(None, "x", Some(TypeIdentifier("Int", _)), _)`
+  * `label x: Int`: `Parameter(Some("label"), "x", Some(TypeIdentifier("Int", _)), _)`
+  * `label x`: `Parameter(Some("label"), "x", None, _)`
 
 ###### `valueParameterList()`
 
@@ -424,6 +440,8 @@ A value parameter list is a list of parameters. It has the following form:
 ```
 
 Implement the `valueParameterList` function that parses a value parameter list. It returns a `List[Parameter]` AST node.
+
+_Hint_: you may find the `commaSeparatedList` function and `parameter()` useful.
 
 ##### `function()`
 
@@ -448,8 +466,12 @@ It should parse both cases:
 and
 
 ```
-(<value parameter list>) -> { <expression> }
+(<value parameter list>) [-> type] { <expression> }
 ```
+
+where `[-> type]` is optional.
+
+_Hint_: `snapshot` and `restore` may come handy.
 
 ##### Match expressions
 
