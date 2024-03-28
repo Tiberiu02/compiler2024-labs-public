@@ -332,9 +332,13 @@ final class Typer(
             context.obligations.add(
               Constraint.Subtype(ascription, u, Constraint.Origin(e.site))
             )
-            ascription
+            Type.some(ascription)
           case Typecast.NarrowUnconditionally =>
-            ascription
+            val u = e.inner.visit(this)
+            context.obligations.add(
+              Constraint.Subtype(ascription, u, Constraint.Origin(e.site))
+            )
+            Type.some(ascription)
 
     context.obligations.constrain(e, result)
 
