@@ -110,10 +110,11 @@ final class Typer(
     val t: Type = context.inScope(
       d,
       { (inner) =>
-        val out = d.output.get.visit(this)
-        memoizedUncheckedType(d, (_) => out) // EG not sure about this
-        checkInstanceOf(d.body, out)
-        out
+        val funcType = computedUncheckedType(d)
+        memoizedUncheckedType(d, (_) => funcType) // EG not sure about this
+        val outType = d.output.get.visit(this)
+        checkInstanceOf(d.body, outType)
+        funcType
       }
     )
 
@@ -250,24 +251,22 @@ final class Typer(
 
   def visitConditional(e: ast.Conditional)(using context: Typer.Context): Type =
     checkInstanceOf(e.condition, Type.Bool)
+    val cond = e.condition.visit(this)
 
-    val c = context.withNewProofObligations
-    val u = freshTypeVariable()
+    val succType = e.successCase.visit(this)
+    val failType = e.failureCase.visit(this)
 
-    val success = e.successCase.visit(this)
-    val failure = e.failureCase.visit(this)
-
-    c.obligations.add(
-      Constraint.Subtype(success, u, Constraint.Origin(e.successCase.site))
-    )
-    c.obligations.add(
-      Constraint.Subtype(failure, u, Constraint.Origin(e.failureCase.site))
-    )
-
-    val s = discharge(c.obligations, e)
-    val result = s.substitution.reify(u)
-
-    context.obligations.constrain(e, result)
+    if succType == failType then 
+      context.obligations.constrain(e, succType)
+    else 
+      val freshTypeVar = freshTypeVariable()
+      context.obligations.add(
+        Constraint.Subtype(succType, freshTypeVar, Constraint.Origin(e.successCase.site))
+      )
+      context.obligations.add(
+        Constraint.Subtype(failType, freshTypeVar, Constraint.Origin(e.failureCase.site))
+      )
+      context.obligations.constrain(e, freshTypeVar)
 
   def visitMatch(e: ast.Match)(using context: Typer.Context): Type =
     // Scrutinee is checked in isolation.
@@ -304,26 +303,26 @@ final class Typer(
           Constraint.Subtype(bodyType, t, Constraint.Origin(e.body.site))
         )
         context.obligations.constrain(e, bodyType)
-    
 
   def visitLambda(e: ast.Lambda)(using context: Typer.Context): Type =
     assignScopeName(e)
-    val inputs = computedUncheckedInputTypes(e.inputs)
-    val inputTypes = inputs.map((t) => t.value)
-    for p <- e.inputs do assignNameDeclared(p)
-
-    val b = e.body.visit(this)
-    e.output match
-      case Some(a) =>
-        val required = evaluateTypeTree(a)
+    val arrowType = context.inScope(
+      e,
+      { (inner) =>
+        val inputTypes = computedUncheckedInputTypes(e.inputs)(using inner)
+        val outputType = e.output match 
+          case Some(t) => 
+            t.visit(this)(using inner)
+          case _ => freshTypeVariable()
         context.obligations.add(
-          Constraint.Subtype(b, required, Constraint.Origin(e.site))
+          Constraint.Subtype(
+            e.body.visit(this)(using inner), outputType, Constraint.Origin(e.site)
+          )
         )
-        val t = arrow(inputTypes: _*)(required)
-        context.obligations.constrain(e, t)
-      case _ =>
-        val t = arrow(inputTypes: _*)(b)
-        context.obligations.constrain(e, t)
+        Type.Arrow(inputTypes, outputType)
+      }
+    )
+    context.obligations.constrain(e, arrowType)
 
   def visitParenthesizedExpression(
       e: ast.ParenthesizedExpression
