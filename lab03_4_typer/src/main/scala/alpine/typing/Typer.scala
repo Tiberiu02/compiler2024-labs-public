@@ -234,10 +234,19 @@ final class Typer(
           Constraint.Apply(f, inputs, t.output, Constraint.Origin(e.site))
         )
         context.obligations.constrain(e, t.output)
-        t.output
-      case _ =>
-        report(TypeError(s"application of non-function type '${f}'", e.site))
-        Type.Error
+        t.output 
+      
+      case _: Type =>
+        val ftv = freshTypeVariable()
+        val inputs = List(
+          Type.Labeled(None, e.lhs.visit(this)),
+          Type.Labeled(None, e.rhs.visit(this))
+        )
+        context.obligations.add(
+          Constraint.Apply(f, inputs, ftv, Constraint.Origin(e.site))
+        )
+        context.obligations.constrain(e, ftv)
+
 
   def visitConditional(e: ast.Conditional)(using context: Typer.Context): Type =
     checkInstanceOf(e.condition, Type.Bool)
@@ -286,7 +295,18 @@ final class Typer(
   def visitLet(e: ast.Let)(using context: Typer.Context): Type =
     assignScopeName(e)
     val t = e.body.visit(this)
-    context.obligations.constrain(e, t)
+    e.binding.visit(this) match
+      case Type.Error =>
+        val ftv = freshTypeVariable()
+        context.obligations.add(
+          Constraint.Subtype(ftv, t, Constraint.Origin(e.site))
+        )
+        context.obligations.constrain(e, ftv)
+      case u =>
+        context.obligations.add(
+          Constraint.Subtype(u, t, Constraint.Origin(e.site))
+        )
+        context.obligations.constrain(e, t)
 
   def visitLambda(e: ast.Lambda)(using context: Typer.Context): Type =
     assignScopeName(e)
