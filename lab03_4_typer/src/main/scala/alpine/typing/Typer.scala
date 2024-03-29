@@ -294,19 +294,17 @@ final class Typer(
 
   def visitLet(e: ast.Let)(using context: Typer.Context): Type =
     assignScopeName(e)
-    val t = e.body.visit(this)
     e.binding.visit(this) match
       case Type.Error =>
-        val ftv = freshTypeVariable()
+        val bodyType = e.body.visit(this)
+        context.obligations.constrain(e, bodyType)
+      case t =>
+        val bodyType = context.inScope(e, (inner) => e.body.visit(this)(using inner))
         context.obligations.add(
-          Constraint.Subtype(ftv, t, Constraint.Origin(e.site))
+          Constraint.Subtype(bodyType, t, Constraint.Origin(e.body.site))
         )
-        context.obligations.constrain(e, ftv)
-      case u =>
-        context.obligations.add(
-          Constraint.Subtype(u, t, Constraint.Origin(e.site))
-        )
-        context.obligations.constrain(e, t)
+        context.obligations.constrain(e, bodyType)
+    
 
   def visitLambda(e: ast.Lambda)(using context: Typer.Context): Type =
     assignScopeName(e)
