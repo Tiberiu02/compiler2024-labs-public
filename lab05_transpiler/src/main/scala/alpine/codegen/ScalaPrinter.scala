@@ -414,12 +414,12 @@ final class ScalaPrinter(syntax: TypedProgram)
         n.inner.visit(this)
         context.output ++= s".asInstanceOf[${transpiledType(n.ascription.tpe)}]"
 
-      case Typecast.Narrow =>
-        n.inner.visit(this)
+      case Typecast.Narrow => 
+        context.output ++= s"alpine_rt.narrow[${transpiledType(n.ascription.tpe)}]("
         
 
-      case Typecast.NarrowUnconditionally => ???
-        context.output ++= s"alpine_rt.narrowUnconditionally[${n.ascription.toString()}]("
+      case Typecast.NarrowUnconditionally => 
+        context.output ++= s"alpine_rt.narrowUnconditionally[${transpiledType(n.ascription.tpe)}]("
         n.inner.visit(this)
         context.output ++= ")"
       
