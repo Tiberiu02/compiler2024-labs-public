@@ -10,6 +10,8 @@ import scala.annotation.tailrec
 import scala.collection.mutable
 import alpine.symbols.Type
 import alpine.symbols.Type.Bool
+import alpine.ast.RecordPattern
+import alpine.ast.Wildcard
 
 /** The transpilation of an Alpine program to Scala. */
 final class ScalaPrinter(syntax: TypedProgram)
@@ -353,6 +355,7 @@ final class ScalaPrinter(syntax: TypedProgram)
     val indent = "  "
     context.output ++= (indent * context.indentation)
     context.output ++= "case "
+    
     n.pattern.visit(this)
     context.output ++= " => {\n"
     context.indentation += 1
@@ -436,9 +439,8 @@ final class ScalaPrinter(syntax: TypedProgram)
   override def visitRecordPattern(n: ast.RecordPattern)(using
       context: Context
   ): Unit =
-    context.output ++= "val "
-    context.output ++= n.identifier
-    context.output ++= " = ("
+    context.output ++= discriminator(n.tpe)
+    context.output ++= "("
     context.output.appendCommaSeparated(n.fields)((builder, labeled) =>
         labeled.value.visit(this)
     )
