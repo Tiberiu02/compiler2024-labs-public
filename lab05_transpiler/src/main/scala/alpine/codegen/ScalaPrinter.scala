@@ -10,6 +10,7 @@ import scala.annotation.tailrec
 import scala.collection.mutable
 import alpine.symbols.Type
 import alpine.symbols.Type.Bool
+import alpine.ast.Typecast
 import alpine.ast.RecordPattern
 import alpine.ast.Wildcard
 
@@ -408,7 +409,20 @@ final class ScalaPrinter(syntax: TypedProgram)
   override def visitAscribedExpression(
       n: ast.AscribedExpression
   )(using context: Context): Unit =
-    ???
+    n.operation match 
+      case Typecast.Widen =>
+        n.inner.visit(this)
+        context.output ++= s".asInstanceOf[${transpiledType(n.ascription.tpe)}]"
+
+      case Typecast.Narrow =>
+        n.inner.visit(this)
+        
+
+      case Typecast.NarrowUnconditionally => ???
+        context.output ++= s"alpine_rt.narrowUnconditionally[${n.ascription.toString()}]("
+        n.inner.visit(this)
+        context.output ++= ")"
+      
 
   override def visitTypeIdentifier(n: ast.TypeIdentifier)(using
       context: Context
