@@ -49,7 +49,7 @@ final class ScalaPrinter(syntax: TypedProgram)
     context.output ++= discriminator(t)
     context.output ++= "("
     context.output.appendCommaSeparated(t.fields) { (o, a) =>
-      o ++= a.label.getOrElse("$" + unnamedFieldCtr.toString())
+      o ++= ("$" + unnamedFieldCtr.toString())
       o ++= ": "
       o ++= transpiledType(a.value)
       unnamedFieldCtr += 1
