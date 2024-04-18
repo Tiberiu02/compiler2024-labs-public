@@ -415,7 +415,10 @@ final class ScalaPrinter(syntax: TypedProgram)
         context.output ++= s".asInstanceOf[${transpiledType(n.ascription.tpe)}]"
 
       case Typecast.Narrow => 
-        context.output ++= s"alpine_rt.narrow[${transpiledType(n.ascription.tpe)}]("
+        context.output ++= s"alpine_rt.narrow[${transpiledType(n.ascription.tpe)}, Option[${transpiledType(n.ascription.tpe)}]]("
+        n.inner.visit(this)
+        context.output ++= s",t => Some(t), None)"
+
         
 
       case Typecast.NarrowUnconditionally => 
