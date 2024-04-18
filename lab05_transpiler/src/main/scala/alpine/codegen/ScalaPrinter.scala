@@ -33,7 +33,7 @@ final class ScalaPrinter(syntax: TypedProgram)
     if t == symbols.Type.Unit then 
       context.output ++= "type Unit = Unit\n"
     else if t.fields.isEmpty then
-      context.output ++= "case class "
+      context.output ++= "case object "
       context.output ++= t.identifier.drop(1)
       context.output ++= "\n"
     else
@@ -287,7 +287,7 @@ final class ScalaPrinter(syntax: TypedProgram)
     context.output.appendCommaSeparated(n.fields) { (_, a) =>
       a.value.visit(this)
     }
-    context.output ++= ")\n"
+    context.output ++= ")"
 
   override def visitSelection(n: ast.Selection)(using context: Context): Unit =
     n.qualification.visit(this)
@@ -336,10 +336,34 @@ final class ScalaPrinter(syntax: TypedProgram)
     n.failureCase.visit(this)
 
   override def visitMatch(n: ast.Match)(using context: Context): Unit =
-    ???
+    val indent = "  "
+    n.scrutinee.visit(this)
+    context.output ++= " match {\n"
+
+    for c <- n.cases do
+      val matchcase = c.asInstanceOf[ast.Match.Case]
+      context.indentation += 1
+      context.output ++= indent * context.indentation
+      c.visit(this)
+      context.indentation -= 1
+    context.indentation -= 1
+    context.output ++= indent * context.indentation
+    context.output ++= "}"
 
   override def visitMatchCase(n: ast.Match.Case)(using context: Context): Unit =
-    ???
+    val indent = "  "
+    context.output ++= (indent * context.indentation)
+    context.output ++= "case "
+    n.pattern.visit(this)
+    context.output ++= " => {\n"
+    context.indentation += 1
+    context.output ++= "  " * context.indentation
+    n.body.visit(this)
+    context.indentation -= 1
+    context.output ++= "\n"
+    context.output ++= indent * context.indentation
+    context.output ++= "}\n"
+    context.indentation -= 1
 
   override def visitLet(n: ast.Let)(using context: Context): Unit =
     // Use a block to uphold lexical scoping.
@@ -423,7 +447,7 @@ final class ScalaPrinter(syntax: TypedProgram)
   override def visitValuePattern(n: ast.ValuePattern)(using
       context: Context
   ): Unit =
-    ???
+    n.value.visit(this)
 
   override def visitRecordPattern(n: ast.RecordPattern)(using
       context: Context
@@ -432,12 +456,12 @@ final class ScalaPrinter(syntax: TypedProgram)
     context.output ++= n.identifier
     context.output ++= " = ("
     context.output.appendCommaSeparated(n.fields)((builder, labeled) =>
-        builder.append(visitLabeled(labeled))
+        labeled.value.visit(this)
     )
     context.output ++= ")"
 
   override def visitWildcard(n: ast.Wildcard)(using context: Context): Unit =
-    ???
+    context.output ++= "_"
 
   override def visitError(n: ast.ErrorTree)(using context: Context): Unit =
     unexpectedVisit(n)
