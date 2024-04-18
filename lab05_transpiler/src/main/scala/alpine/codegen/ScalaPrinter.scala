@@ -29,7 +29,12 @@ final class ScalaPrinter(syntax: TypedProgram)
 
   /** Writes the Scala declaration of `t` in `context`. */
   private def emitRecord(t: symbols.Type.Record)(using context: Context): Unit =
-    if t == symbols.Type.Unit then context.output ++= "type Unit = Unit\n"
+    if t == symbols.Type.Unit then 
+      context.output ++= "type Unit = Unit\n"
+    else if t.fields.isEmpty then
+      context.output ++= "case class "
+      context.output ++= t.identifier.drop(1)
+      context.output ++= "\n"
     else
       emitNonSingletonRecord(t)
       
@@ -39,13 +44,15 @@ final class ScalaPrinter(syntax: TypedProgram)
   private def emitNonSingletonRecord(t: symbols.Type.Record)(using
       context: Context
   ): Unit =
-    context.output ++= "final case class "
+    var unnamedFieldCtr = 0
+    context.output ++= "case class "
     context.output ++= discriminator(t)
     context.output ++= "("
     context.output.appendCommaSeparated(t.fields) { (o, a) =>
-      o ++= a.label.getOrElse("")
+      o ++= a.label.getOrElse("$" + unnamedFieldCtr.toString())
       o ++= ": "
       o ++= transpiledType(a.value)
+      unnamedFieldCtr += 1
     }
     context.output ++= ")\n"
 
@@ -140,7 +147,11 @@ final class ScalaPrinter(syntax: TypedProgram)
     * mangled name.
     */
   private def discriminator(t: symbols.Type.Record): String =
-    "R" + t.identifier
+    val builder = StringBuilder("REC" + t.identifier.drop(1))
+    for f <- t.fields do
+      builder ++= f.label.getOrElse("")
+      builder ++= discriminator(f.value)
+    builder.toString()
 
   /** Returns a string uniquely identifiyng `t` for use as a discriminator in a
     * mangled name.
@@ -272,12 +283,10 @@ final class ScalaPrinter(syntax: TypedProgram)
   override def visitRecord(n: ast.Record)(using context: Context): Unit =
     context.output ++= transpiledRecord(n.tpe.asInstanceOf[symbols.Type.Record])
     context.output ++= "("
-    context.output.appendCommaSeparated(n.fields) { (o, a) =>
-      o ++= a.label.getOrElse("")
-      o ++= " = "
+    context.output.appendCommaSeparated(n.fields) { (_, a) =>
       a.value.visit(this)
     }
-    context.output ++= ")"
+    context.output ++= ")\n"
 
   override def visitSelection(n: ast.Selection)(using context: Context): Unit =
     n.qualification.visit(this)
@@ -410,7 +419,6 @@ final class ScalaPrinter(syntax: TypedProgram)
         builder.append(visitLabeled(labeled))
     )
     context.output ++= ")"
-    val thing = ()
 
   override def visitWildcard(n: ast.Wildcard)(using context: Context): Unit =
     ???
