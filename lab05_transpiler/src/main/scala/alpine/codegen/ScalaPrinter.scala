@@ -357,6 +357,11 @@ final class ScalaPrinter(syntax: TypedProgram)
     context.output ++= "case "
     
     n.pattern.visit(this)
+    
+    if n.pattern.isInstanceOf[ast.Binding] then 
+      val index = context.output.lastIndexOf("val")
+      context.output.delete(index, index + 3)
+
     context.output ++= " => {\n"
     context.indentation += 1
     context.output ++= "  " * context.indentation
