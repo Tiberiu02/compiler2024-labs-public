@@ -31,23 +31,23 @@ final class ScalaPrinter(syntax: TypedProgram)
   private def emitRecord(t: symbols.Type.Record)(using context: Context): Unit =
     if t == symbols.Type.Unit then context.output ++= "type Unit = Unit\n"
     else
-      context.output ++= "final case class "
-      context.output ++= discriminator(t)
-      context.output ++= "("
-      context.output.appendCommaSeparated(t.fields) { (o, a) =>
-        o ++= a.label.getOrElse("")
-        o ++= ": "
-        o ++= transpiledType(a.value)
-      }
-      context.output ++= ")\n"
-
+      emitNonSingletonRecord(t)
+      
   /** Writes the Scala declaration of `t`, which is not a singleton, in
     * `context`.
     */
   private def emitNonSingletonRecord(t: symbols.Type.Record)(using
       context: Context
   ): Unit =
-    ???
+    context.output ++= "final case class "
+    context.output ++= discriminator(t)
+    context.output ++= "("
+    context.output.appendCommaSeparated(t.fields) { (o, a) =>
+      o ++= a.label.getOrElse("")
+      o ++= ": "
+      o ++= transpiledType(a.value)
+    }
+    context.output ++= ")\n"
 
   /** Returns the transpiled form of `t`. */
   private def transpiledType(t: symbols.Type)(using context: Context): String =
@@ -403,7 +403,14 @@ final class ScalaPrinter(syntax: TypedProgram)
   override def visitRecordPattern(n: ast.RecordPattern)(using
       context: Context
   ): Unit =
-    ???
+    context.output ++= "val "
+    context.output ++= n.identifier
+    context.output ++= " = ("
+    context.output.appendCommaSeparated(n.fields)((builder, labeled) =>
+        builder.append(visitLabeled(labeled))
+    )
+    context.output ++= ")"
+    val thing = ()
 
   override def visitWildcard(n: ast.Wildcard)(using context: Context): Unit =
     ???
