@@ -448,6 +448,9 @@ final class ScalaPrinter(syntax: TypedProgram)
     context.output ++= "("
     context.output.appendCommaSeparated(n.fields)((builder, labeled) =>
         labeled.value.visit(this)
+        if labeled.value.isInstanceOf[ast.Binding] then
+          val idx = context.output.lastIndexOf("val")
+          context.output.delete(idx, idx+3)
     )
     context.output ++= ")"
 
