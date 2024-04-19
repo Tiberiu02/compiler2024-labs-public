@@ -34,9 +34,9 @@ final class ScalaPrinter(syntax: TypedProgram)
   private def emitRecord(t: symbols.Type.Record)(using context: Context): Unit =
     if t == symbols.Type.Unit then context.output ++= "type Unit = Unit\n"
     else if t.fields.isEmpty then
-      context.output ++= "case object "
-      context.output ++= t.identifier.drop(1)
-      context.output ++= "\n"
+      context.output ++= "case class "
+      context.output ++= discriminator(t)
+      context.output ++= "()\n"
     else emitNonSingletonRecord(t)
 
   /** Writes the Scala declaration of `t`, which is not a singleton, in
@@ -419,9 +419,11 @@ final class ScalaPrinter(syntax: TypedProgram)
         context.registerUse(someType)
         context.registerUse(noneType)
 
-        context.output ++= s"alpine_rt.narrow[${transpiledType(n.ascription.tpe)}, Option[${transpiledType(n.ascription.tpe)}]]("
+        context.output ++= s"alpine_rt.narrow[${transpiledType(
+            n.ascription.tpe
+          )}, ${discriminator(someType)} | ${discriminator(noneType)}]("
         n.inner.visit(this)
-        context.output ++= s",t => Some(t), None)"
+        context.output ++= s",t => ${discriminator(someType)}(t), ${discriminator(noneType)}())"
 
       case Typecast.NarrowUnconditionally =>
         context.output ++= s"alpine_rt.narrowUnconditionally[${transpiledType(n.ascription.tpe)}]("
