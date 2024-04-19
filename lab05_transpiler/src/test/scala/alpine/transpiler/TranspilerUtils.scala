@@ -118,7 +118,6 @@ object TranspilerUtils:
         val parsed = parsing.Parser(source).program()
         val typed = { val typer = typing.Typer(); typer.check(parsed) }
         val transpiled = codegen.ScalaPrinter(typed).transpile()
-        print(transpiled)
         Right(writeScalaFile("main", transpiled))
       catch (e: Throwable) => Left(BackendError(e))
 

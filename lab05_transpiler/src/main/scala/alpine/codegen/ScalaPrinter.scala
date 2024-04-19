@@ -414,7 +414,7 @@ final class ScalaPrinter(syntax: TypedProgram)
 
       case Typecast.Narrow =>
         val someType =
-          Type.Record("#some", List(Type.Labeled(None, n.ascription.tpe)))
+          Type.Record("#some", List(Type.Labeled(None, Type.Any)))
         val noneType = Type.Record("#none", List())
         context.registerUse(someType)
         context.registerUse(noneType)
