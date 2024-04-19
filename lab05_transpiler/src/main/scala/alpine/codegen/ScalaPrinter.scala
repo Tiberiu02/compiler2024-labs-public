@@ -32,15 +32,13 @@ final class ScalaPrinter(syntax: TypedProgram)
 
   /** Writes the Scala declaration of `t` in `context`. */
   private def emitRecord(t: symbols.Type.Record)(using context: Context): Unit =
-    if t == symbols.Type.Unit then 
-      context.output ++= "type Unit = Unit\n"
+    if t == symbols.Type.Unit then context.output ++= "type Unit = Unit\n"
     else if t.fields.isEmpty then
       context.output ++= "case object "
       context.output ++= t.identifier.drop(1)
       context.output ++= "\n"
-    else
-      emitNonSingletonRecord(t)
-      
+    else emitNonSingletonRecord(t)
+
   /** Writes the Scala declaration of `t`, which is not a singleton, in
     * `context`.
     */
@@ -356,10 +354,10 @@ final class ScalaPrinter(syntax: TypedProgram)
     val indent = "  "
     context.output ++= (indent * context.indentation)
     context.output ++= "case "
-    
+
     n.pattern.visit(this)
-    
-    if n.pattern.isInstanceOf[ast.Binding] then 
+
+    if n.pattern.isInstanceOf[ast.Binding] then
       val index = context.output.lastIndexOf("val")
       context.output.delete(index, index + 3)
 
@@ -409,23 +407,26 @@ final class ScalaPrinter(syntax: TypedProgram)
   override def visitAscribedExpression(
       n: ast.AscribedExpression
   )(using context: Context): Unit =
-    n.operation match 
+    n.operation match
       case Typecast.Widen =>
         n.inner.visit(this)
         context.output ++= s".asInstanceOf[${transpiledType(n.ascription.tpe)}]"
 
-      case Typecast.Narrow => 
+      case Typecast.Narrow =>
+        val someType =
+          Type.Record("#some", List(Type.Labeled(None, n.ascription.tpe)))
+        val noneType = Type.Record("#none", List())
+        context.registerUse(someType)
+        context.registerUse(noneType)
+
         context.output ++= s"alpine_rt.narrow[${transpiledType(n.ascription.tpe)}, Option[${transpiledType(n.ascription.tpe)}]]("
         n.inner.visit(this)
         context.output ++= s",t => Some(t), None)"
 
-        
-
-      case Typecast.NarrowUnconditionally => 
+      case Typecast.NarrowUnconditionally =>
         context.output ++= s"alpine_rt.narrowUnconditionally[${transpiledType(n.ascription.tpe)}]("
         n.inner.visit(this)
         context.output ++= ")"
-      
 
   override def visitTypeIdentifier(n: ast.TypeIdentifier)(using
       context: Context
@@ -464,10 +465,10 @@ final class ScalaPrinter(syntax: TypedProgram)
     context.output ++= discriminator(n.tpe)
     context.output ++= "("
     context.output.appendCommaSeparated(n.fields)((builder, labeled) =>
-        labeled.value.visit(this)
-        if labeled.value.isInstanceOf[ast.Binding] then
-          val idx = context.output.lastIndexOf("val")
-          context.output.delete(idx, idx+3)
+      labeled.value.visit(this)
+      if labeled.value.isInstanceOf[ast.Binding] then
+        val idx = context.output.lastIndexOf("val")
+        context.output.delete(idx, idx + 3)
     )
     context.output ++= ")"
 
