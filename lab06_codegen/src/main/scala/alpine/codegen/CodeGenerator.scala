@@ -8,7 +8,8 @@ import alpine.wasm.Wasm
 import scala.collection.mutable
 
 /** The transpilation of an Alpine program to Scala. */
-final class CodeGenerator(syntax: TypedProgram) extends ast.TreeVisitor[CodeGenerator.Context, Unit]:
+final class CodeGenerator(syntax: TypedProgram)
+    extends ast.TreeVisitor[CodeGenerator.Context, Unit]:
   import CodeGenerator._
 
   /** The program being evaluated. */
@@ -25,41 +26,25 @@ final class CodeGenerator(syntax: TypedProgram) extends ast.TreeVisitor[CodeGene
       ImportMemory("api", "mem", 100)
     ),
     List(
-      FunctionDefinition("heap-test", body =
-        List(
-          IConst(0),
-          IConst(0xdeadbeef),
-          IStore,
-          IConst(0),
-          Call("show-memory")
-        )
-      ),
-      FunctionDefinition("local-test", locals = List(F32, F32), returnType = Some(F32), body =
-        List(
-          FConst(3.14),
-          LocalSet(0),
-          FConst(1.67),
-          LocalSet(1),
-          LocalGet(0),
-          LocalGet(1),
-          FSub
-        )
-      ),
       MainFunction(
         List(
-          IConst(1),
-          IConst(2),
-          IAdd,
-          Call("print"),
-          Call("heap-test"),
-          Call("local-test"),
-          Call("fprint"),
-          IConst(0x41),
-          Call("print-char"),
+          IConst(42),
+          Call("print")
 
-          FConst(42) // Return
+          // IConst(1),
+          // IConst(2),
+          // IAdd,
+          // Call("print"),
+          // Call("heap-test"),
+          // Call("local-test"),
+          // Call("fprint"),
+          // IConst(0x41),
+          // Call("print-char"),
+
+          // FConst(42) // Return
         ),
-        Some(F32)
+        // Some(F32)
+        None
       )
     )
   )
@@ -127,10 +112,13 @@ final class CodeGenerator(syntax: TypedProgram) extends ast.TreeVisitor[CodeGene
   def visitLambda(n: Lambda)(using a: Context): Unit = ???
 
   /** Visits `n` with state `a`. */
-  def visitParenthesizedExpression(n: ParenthesizedExpression)(using a: Context): Unit = ???
+  def visitParenthesizedExpression(n: ParenthesizedExpression)(using
+      a: Context
+  ): Unit = ???
 
   /** Visits `n` with state `a`. */
-  def visitAscribedExpression(n: AscribedExpression)(using a: Context): Unit = ???
+  def visitAscribedExpression(n: AscribedExpression)(using a: Context): Unit =
+    ???
 
   /** Visits `n` with state `a`. */
   def visitTypeIdentifier(n: TypeIdentifier)(using a: Context): Unit = ???
@@ -165,9 +153,10 @@ final class CodeGenerator(syntax: TypedProgram) extends ast.TreeVisitor[CodeGene
 object CodeGenerator:
 
   /** The local state of a transpilation to Scala.
-   *
-   *  @param indentation The current identation to add before newlines.
-   */
+    *
+    * @param indentation
+    *   The current identation to add before newlines.
+    */
   final class Context(var indentation: Int = 0):
 
     /** The types that must be emitted in the program. */
@@ -192,14 +181,18 @@ object CodeGenerator:
     def registerUse(t: symbols.Type.Record): Unit =
       if t != symbols.Type.Unit then _typesToEmit.add(t)
 
-    /** Returns `action` applied on `this` where `output` has been exchanged with `o`. */
+    /** Returns `action` applied on `this` where `output` has been exchanged
+      * with `o`.
+      */
     def swappingOutputBuffer[R](o: StringBuilder)(action: Context => R): R =
       val old = _output
       _output = o
-      try action(this) finally _output = old
+      try action(this)
+      finally _output = old
 
     /** Returns `action` applied on `this` where `isTopLevel` is `false`. */
     def inScope[R](action: Context => R): R =
       var tl = _isTopLevel
       _isTopLevel = false
-      try action(this) finally _isTopLevel = tl
+      try action(this)
+      finally _isTopLevel = tl
