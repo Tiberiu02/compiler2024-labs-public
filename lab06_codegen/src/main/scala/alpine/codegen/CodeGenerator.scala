@@ -8,6 +8,7 @@ import alpine.wasm.Wasm
 import scala.collection.mutable
 import scala.collection.mutable.Stack
 import alpine.wasm.WasmTree
+import scala.collection.mutable.ListBuffer
 
 /** The transpilation of an Alpine program to Scala. */
 final class CodeGenerator(syntax: TypedProgram)
@@ -38,7 +39,12 @@ final class CodeGenerator(syntax: TypedProgram)
   def visitLabeled[T <: Tree](n: Labeled[T])(using a: Context): Unit = ???
 
   /** Visits `n` with state `a`. */
-  def visitBinding(n: Binding)(using a: Context): Unit = ???
+  def visitBinding(n: Binding)(using a: Context): Unit =
+    if n.identifier == "main" then
+      n.initializer.get.visit(this)
+      a.addFunction(MainFunction(a.popInstructions.toList.reverse, None))
+    else
+      n.initializer.get.visit(this)
 
   /** Visits `n` with state `a`. */
   def visitTypeDeclaration(n: TypeDeclaration)(using a: Context): Unit = ???
@@ -50,7 +56,8 @@ final class CodeGenerator(syntax: TypedProgram)
   def visitParameter(n: Parameter)(using a: Context): Unit = ???
 
   /** Visits `n` with state `a`. */
-  def visitIdentifier(n: Identifier)(using a: Context): Unit = ???
+  def visitIdentifier(n: Identifier)(using a: Context): Unit = 
+    a.pushInstruction(Call(n.value))
 
   /** Visits `n` with state `a`. */
   def visitBooleanLiteral(n: BooleanLiteral)(using a: Context): Unit =
@@ -77,7 +84,9 @@ final class CodeGenerator(syntax: TypedProgram)
   def visitSelection(n: Selection)(using a: Context): Unit = ???
 
   /** Visits `n` with state `a`. */
-  def visitApplication(n: Application)(using a: Context): Unit = ???
+  def visitApplication(n: Application)(using a: Context): Unit =
+    n.arguments.foreach(_.value.visit(this))
+    n.function.visit(this)
 
   /** Visits `n` with state `a`. */
   def visitPrefixApplication(n: PrefixApplication)(using a: Context): Unit = ???
@@ -148,7 +157,7 @@ object CodeGenerator:
     */
   final class Context(imports: List[Import]):
     // list of functions (including main function)
-    private var functions: List[WasmTree.Function] = Nil
+    private var functions = ListBuffer[WasmTree.Function]()
 
     // stack of instructions used for evaluating functions
     private var instructionsStack = Stack[WasmTree.Instruction]()
@@ -156,42 +165,12 @@ object CodeGenerator:
     def pushInstruction(instruction: Instruction) = 
       instructionsStack.push(instruction)
 
-    def clearStack() =
-      instructionsStack = Stack[Instruction]()
+    def popInstructions = instructionsStack.popAll()
 
-    def toModule: Module = Module(imports, functions)
+    /* adds a function to the list of function */ 
+    def addFunction(f: WasmTree.Function) =
+      functions += f
 
-    /** The types that must be emitted in the program. */
-    private var _typesToEmit = mutable.Set[symbols.Type.Record]()
+    /* returns a wasm module representing the program */
+    def toModule: Module = Module(imports, functions.toList)
 
-    /** The types that must be emitted in the program. */
-    def typesToEmit: Set[symbols.Type.Record] = _typesToEmit.toSet
-
-    /** The (partial) result of the transpilation. */
-    private var _output = StringBuilder()
-
-    /** `true` iff the transpiler is processing top-level symbols. */
-    private var _isTopLevel = true
-
-    /** `true` iff the transpiler is processing top-level symbols. */
-    def isTopLevel: Boolean = _isTopLevel
-
-    /** Adds `t` to the set of types that are used by the transpiled program. */
-    def registerUse(t: symbols.Type.Record): Unit =
-      if t != symbols.Type.Unit then _typesToEmit.add(t)
-
-    /** Returns `action` applied on `this` where `output` has been exchanged
-      * with `o`.
-      */
-    def swappingOutputBuffer[R](o: StringBuilder)(action: Context => R): R =
-      val old = _output
-      _output = o
-      try action(this)
-      finally _output = old
-
-    /** Returns `action` applied on `this` where `isTopLevel` is `false`. */
-    def inScope[R](action: Context => R): R =
-      var tl = _isTopLevel
-      _isTopLevel = false
-      try action(this)
-      finally _isTopLevel = tl
