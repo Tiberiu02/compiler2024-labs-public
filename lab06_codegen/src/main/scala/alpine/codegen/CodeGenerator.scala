@@ -16,12 +16,12 @@ final class CodeGenerator(syntax: TypedProgram)
   import CodeGenerator._
 
   val imports = List(
-      ImportFromModule("api", "print", "print", List(I32), None),
-      ImportFromModule("api", "print", "fprint", List(F32), None),
-      ImportFromModule("api", "print-char", "print-char", List(I32), None),
-      ImportFromModule("api", "show-memory", "show-memory", List(I32), None),
-      ImportMemory("api", "mem", 100)
-    )
+    ImportFromModule("api", "print", "print", List(I32), None),
+    ImportFromModule("api", "print", "fprint", List(F32), None),
+    ImportFromModule("api", "print-char", "print-char", List(I32), None),
+    ImportFromModule("api", "show-memory", "show-memory", List(I32), None),
+    ImportMemory("api", "mem", 100)
+  )
 
   // context used for evaluation
   val a = CodeGenerator.Context(imports)
@@ -43,30 +43,31 @@ final class CodeGenerator(syntax: TypedProgram)
     if n.identifier == "main" then
       n.initializer.get.visit(this)
       a.addFunction(MainFunction(a.popInstructions.toList.reverse, None))
-    else
-      n.initializer.get.visit(this)
+    else n.initializer.get.visit(this)
 
   /** Visits `n` with state `a`. */
   def visitTypeDeclaration(n: TypeDeclaration)(using a: Context): Unit = ???
 
   /** Visits `n` with state `a`. */
-  def visitFunction(n: ast.Function)(using a: Context): Unit = 
+  def visitFunction(n: ast.Function)(using a: Context): Unit =
     n.output match
       case Some(tpe) => tpe.visit(this)
-      case None => a.pushType(None)
+      case None      => a.pushType(None)
     n.inputs.foreach(_.visit(this)) // pushes types to stack
 
     val all = a.popTypes.toList.reverse
     val inputs = all.drop(1).toList
-    val output = all.take(1).toList match 
+    val output = all.take(1).toList match
       case x :: Nil => x
-      case _ => ???
+      case _        => ???
 
-    a.addFunction(FunctionDefinition(
-      name = n.identifier, 
-      locals = inputs.map(_.get),
-      returnType = output,
-      body = List())
+    a.addFunction(
+      FunctionDefinition(
+        name = n.identifier,
+        locals = inputs.map(_.get),
+        returnType = output,
+        body = List()
+      )
     )
 
   /** Visits `n` with state `a`. */
@@ -74,15 +75,13 @@ final class CodeGenerator(syntax: TypedProgram)
     a.addParameterToMap(n.identifier)
 
   /** Visits `n` with state `a`. */
-  def visitIdentifier(n: Identifier)(using a: Context): Unit = 
+  def visitIdentifier(n: Identifier)(using a: Context): Unit =
     a.pushInstruction(Call(n.value))
 
   /** Visits `n` with state `a`. */
   def visitBooleanLiteral(n: BooleanLiteral)(using a: Context): Unit =
-    if n.value.toBoolean then
-      a.pushInstruction(IConst(1))
-    else
-      a.pushInstruction(IConst(0))
+    if n.value.toBoolean then a.pushInstruction(IConst(1))
+    else a.pushInstruction(IConst(0))
 
   /** Visits `n` with state `a`. */
   def visitIntegerLiteral(n: IntegerLiteral)(using a: Context): Unit =
@@ -110,7 +109,32 @@ final class CodeGenerator(syntax: TypedProgram)
   def visitPrefixApplication(n: PrefixApplication)(using a: Context): Unit = ???
 
   /** Visits `n` with state `a`. */
-  def visitInfixApplication(n: InfixApplication)(using a: Context): Unit = ???
+  def visitInfixApplication(n: InfixApplication)(using a: Context): Unit =
+    n.lhs.visit(this)
+    n.rhs.visit(this)
+    if n.lhs.tpe == symbols.Type.Int && n.rhs.tpe == symbols.Type.Int then
+      n.function.value match
+        case "+"  => a.pushInstruction(IAdd)
+        case "-"  => a.pushInstruction(ISub)
+        case "*"  => a.pushInstruction(IMul)
+        case "/"  => a.pushInstruction(IDiv)
+        case "%"  => a.pushInstruction(IRem)
+        case "&"  => a.pushInstruction(IAnd)
+        case "|"  => a.pushInstruction(IOr)
+        case "==" => a.pushInstruction(IEq)
+        case "<"  => a.pushInstruction(ILt_s)
+        case "<=" => a.pushInstruction(ILe_s)
+    else if n.lhs.tpe == symbols.Type.Float && n.rhs.tpe == symbols.Type.Float
+    then
+      n.function.value match
+        case "+"  => a.pushInstruction(FAdd)
+        case "-"  => a.pushInstruction(FSub)
+        case "*"  => a.pushInstruction(FMul)
+        case "/"  => a.pushInstruction(FDiv)
+        case "="  => a.pushInstruction(FEq)
+        case "<"  => a.pushInstruction(FLt)
+        case "<=" => a.pushInstruction(FLe)
+    else ??? // error
 
   /** Visits `n` with state `a`. */
   def visitConditional(n: Conditional)(using a: Context): Unit = ???
@@ -188,7 +212,7 @@ object CodeGenerator:
     // stack of instructions used for evaluating functions
     private var instructionsStack = Stack[WasmTree.Instruction]()
 
-    def pushInstruction(instruction: Instruction) = 
+    def pushInstruction(instruction: Instruction) =
       instructionsStack.push(instruction)
 
     def popInstructions = instructionsStack.popAll()
@@ -200,7 +224,7 @@ object CodeGenerator:
 
     def popTypes = typesStack.popAll()
 
-    /* adds a function to the list of function */ 
+    /* adds a function to the list of function */
     def addFunction(f: WasmTree.Function) =
       functions += f
 
@@ -222,4 +246,3 @@ object CodeGenerator:
 
     /* returns a wasm module representing the program */
     def toModule: Module = Module(imports, functions.toList)
-

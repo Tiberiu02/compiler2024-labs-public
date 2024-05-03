@@ -1,3 +1,4 @@
 main.al
 output.wasm
 output.wat
+.scalafmt.conf
