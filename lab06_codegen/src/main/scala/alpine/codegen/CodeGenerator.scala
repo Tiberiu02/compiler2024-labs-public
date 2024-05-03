@@ -50,10 +50,28 @@ final class CodeGenerator(syntax: TypedProgram)
   def visitTypeDeclaration(n: TypeDeclaration)(using a: Context): Unit = ???
 
   /** Visits `n` with state `a`. */
-  def visitFunction(n: ast.Function)(using a: Context): Unit = ???
+  def visitFunction(n: ast.Function)(using a: Context): Unit = 
+    n.output match
+      case Some(tpe) => tpe.visit(this)
+      case None => a.pushType(None)
+    n.inputs.foreach(_.visit(this)) // pushes types to stack
+
+    val all = a.popTypes.toList.reverse
+    val inputs = all.drop(1).toList
+    val output = all.take(1).toList match 
+      case x :: Nil => x
+      case _ => ???
+
+    a.addFunction(FunctionDefinition(
+      name = n.identifier, 
+      locals = inputs.filter(!_.isEmpty).map(_.get),
+      returnType = output,
+      body = List())
+    )
 
   /** Visits `n` with state `a`. */
-  def visitParameter(n: Parameter)(using a: Context): Unit = ???
+  def visitParameter(n: Parameter)(using a: Context): Unit =
+    ???
 
   /** Visits `n` with state `a`. */
   def visitIdentifier(n: Identifier)(using a: Context): Unit = 
@@ -119,7 +137,15 @@ final class CodeGenerator(syntax: TypedProgram)
     ???
 
   /** Visits `n` with state `a`. */
-  def visitTypeIdentifier(n: TypeIdentifier)(using a: Context): Unit = ???
+  def visitTypeIdentifier(n: TypeIdentifier)(using a: Context): Unit =
+    a.pushType(
+      n.value match
+        case "Int" =>
+          Some(I32)
+        case "Float" =>
+          Some(F32)
+        case _ => ???
+    )
 
   /** Visits `n` with state `a`. */
   def visitRecordType(n: RecordType)(using a: Context): Unit = ???
@@ -167,9 +193,19 @@ object CodeGenerator:
 
     def popInstructions = instructionsStack.popAll()
 
+    private var typesStack = Stack[Option[WasmTree.WasmType]]()
+
+    def pushType(t: Option[WasmTree.WasmType]) =
+      typesStack.push(t)
+
+    def popTypes = typesStack.popAll()
+
     /* adds a function to the list of function */ 
     def addFunction(f: WasmTree.Function) =
       functions += f
+
+    /* maps identifiers to numbers */
+    private var functionParameterMappings = Map[String, Int]()
 
     /* returns a wasm module representing the program */
     def toModule: Module = Module(imports, functions.toList)
