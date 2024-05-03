@@ -102,8 +102,21 @@ final class CodeGenerator(syntax: TypedProgram)
 
   /** Visits `n` with state `a`. */
   def visitApplication(n: Application)(using a: Context): Unit =
-    n.arguments.foreach(_.value.visit(this))
-    n.function.visit(this)
+    println(n.function)
+    n.function match
+      case Identifier("print", _) =>
+        println(n.arguments.head.value.tpe)
+        if n.arguments.head.value.tpe == symbols.Type.Int then
+          n.arguments.head.value.visit(this)
+          a.pushInstruction(Call("print"))
+        else if n.arguments.head.value.tpe == symbols.Type.Float then
+          n.arguments.head.value.visit(this)
+          a.pushInstruction(Call("fprint"))
+        else ??? // error
+      case Identifier(s, _) =>
+        n.arguments.foreach(_.value.visit(this))
+        n.function.visit(this)
+      case _ => ??? // error
 
   /** Visits `n` with state `a`. */
   def visitPrefixApplication(n: PrefixApplication)(using a: Context): Unit = ???
