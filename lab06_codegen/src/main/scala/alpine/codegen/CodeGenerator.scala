@@ -64,14 +64,14 @@ final class CodeGenerator(syntax: TypedProgram)
 
     a.addFunction(FunctionDefinition(
       name = n.identifier, 
-      locals = inputs.filter(!_.isEmpty).map(_.get),
+      locals = inputs.map(_.get),
       returnType = output,
       body = List())
     )
 
   /** Visits `n` with state `a`. */
   def visitParameter(n: Parameter)(using a: Context): Unit =
-    ???
+    a.addParameterToMap(n.identifier)
 
   /** Visits `n` with state `a`. */
   def visitIdentifier(n: Identifier)(using a: Context): Unit = 
@@ -204,8 +204,21 @@ object CodeGenerator:
     def addFunction(f: WasmTree.Function) =
       functions += f
 
+    private var ctr = 0
     /* maps identifiers to numbers */
     private var functionParameterMappings = Map[String, Int]()
+
+    /* adds a parameter to the parameter mappings */
+    def addParameterToMap(identifier: String) =
+      functionParameterMappings += (identifier -> ctr)
+      ctr += 1
+
+    /* gets the corresponding number (for example for Local.get(0)) */
+    def getParameterNum(identifier: String) =
+      functionParameterMappings.get(identifier).get
+
+    def clearFunctionParameterMappings =
+      functionParameterMappings = Map[String, Int]()
 
     /* returns a wasm module representing the program */
     def toModule: Module = Module(imports, functions.toList)
