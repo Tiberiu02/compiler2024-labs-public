@@ -6,48 +6,31 @@ import alpine.wasm.WasmTree._
 import alpine.ast._
 import alpine.wasm.Wasm
 import scala.collection.mutable
+import scala.collection.mutable.Stack
+import alpine.wasm.WasmTree
 
 /** The transpilation of an Alpine program to Scala. */
 final class CodeGenerator(syntax: TypedProgram)
     extends ast.TreeVisitor[CodeGenerator.Context, Unit]:
   import CodeGenerator._
 
-  /** The program being evaluated. */
-  private given TypedProgram = syntax
-
-  /** Returns a WebAssembly program equivalent to `syntax`. */
-  /** THIS IS AN EXAMPLE MODULE! */
-  def compile(): Module = Module(
-    List(
+  val imports = List(
       ImportFromModule("api", "print", "print", List(I32), None),
       ImportFromModule("api", "print", "fprint", List(F32), None),
       ImportFromModule("api", "print-char", "print-char", List(I32), None),
       ImportFromModule("api", "show-memory", "show-memory", List(I32), None),
       ImportMemory("api", "mem", 100)
-    ),
-    List(
-      MainFunction(
-        List(
-          IConst(42),
-          Call("print")
-
-          // IConst(1),
-          // IConst(2),
-          // IAdd,
-          // Call("print"),
-          // Call("heap-test"),
-          // Call("local-test"),
-          // Call("fprint"),
-          // IConst(0x41),
-          // Call("print-char"),
-
-          // FConst(42) // Return
-        ),
-        // Some(F32)
-        None
-      )
     )
-  )
+
+  // context used for evaluation
+  val a = CodeGenerator.Context(imports)
+
+  /** The program being evaluated. */
+  private given TypedProgram = syntax
+  syntax.declarations.foreach(_.visit(this)(using a))
+
+  /** Returns a WebAssembly program equivalent to `syntax`. */
+  def compile(): Module = a.toModule
 
   // Tree visitor methods
 
@@ -70,13 +53,19 @@ final class CodeGenerator(syntax: TypedProgram)
   def visitIdentifier(n: Identifier)(using a: Context): Unit = ???
 
   /** Visits `n` with state `a`. */
-  def visitBooleanLiteral(n: BooleanLiteral)(using a: Context): Unit = ???
+  def visitBooleanLiteral(n: BooleanLiteral)(using a: Context): Unit =
+    if n.value.toBoolean then
+      a.pushInstruction(IConst(1))
+    else
+      a.pushInstruction(IConst(0))
 
   /** Visits `n` with state `a`. */
-  def visitIntegerLiteral(n: IntegerLiteral)(using a: Context): Unit = ???
+  def visitIntegerLiteral(n: IntegerLiteral)(using a: Context): Unit =
+    a.pushInstruction(IConst(n.value.toInt))
 
   /** Visits `n` with state `a`. */
-  def visitFloatLiteral(n: FloatLiteral)(using a: Context): Unit = ???
+  def visitFloatLiteral(n: FloatLiteral)(using a: Context): Unit =
+    a.pushInstruction(FConst(n.value.toFloat))
 
   /** Visits `n` with state `a`. */
   def visitStringLiteral(n: StringLiteral)(using a: Context): Unit = ???
@@ -157,7 +146,20 @@ object CodeGenerator:
     * @param indentation
     *   The current identation to add before newlines.
     */
-  final class Context(var indentation: Int = 0):
+  final class Context(imports: List[Import]):
+    // list of functions (including main function)
+    private var functions: List[WasmTree.Function] = Nil
+
+    // stack of instructions used for evaluating functions
+    private var instructionsStack = Stack[WasmTree.Instruction]()
+
+    def pushInstruction(instruction: Instruction) = 
+      instructionsStack.push(instruction)
+
+    def clearStack() =
+      instructionsStack = Stack[Instruction]()
+
+    def toModule: Module = Module(imports, functions)
 
     /** The types that must be emitted in the program. */
     private var _typesToEmit = mutable.Set[symbols.Type.Record]()
@@ -167,9 +169,6 @@ object CodeGenerator:
 
     /** The (partial) result of the transpilation. */
     private var _output = StringBuilder()
-
-    /** The (partial) result of the transpilation. */
-    def output: StringBuilder = _output
 
     /** `true` iff the transpiler is processing top-level symbols. */
     private var _isTopLevel = true
