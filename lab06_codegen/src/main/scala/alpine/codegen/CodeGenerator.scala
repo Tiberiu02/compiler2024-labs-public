@@ -51,31 +51,48 @@ final class CodeGenerator(syntax: TypedProgram)
 
   /** Visits `n` with state `a`. */
   def visitFunction(n: ast.Function)(using a: Context): Unit = 
+    a.inFunctionDef = true // we are now in a function
     n.output match
       case Some(tpe) => tpe.visit(this)
       case None => a.pushType(None)
-    n.inputs.foreach(_.visit(this)) // pushes types to stack
+
+    n.inputs.foreach(_.visit(this)) // pushes input types to stack
 
     val all = a.popTypes.toList.reverse
-    val inputs = all.drop(1).toList
-    val output = all.take(1).toList match 
-      case x :: Nil => x
+
+    // last elements on the stack
+    val inputs = all match
+      case x :: xs => xs.filter(_.isDefined).map(_.get)
       case _ => ???
+    // first element on stack
+    val output = all match 
+      case x :: xs => x
+      case _ => ???
+
+    n.body.visit(this)
 
     a.addFunction(FunctionDefinition(
       name = n.identifier, 
-      locals = inputs.map(_.get),
+      params = inputs,
       returnType = output,
-      body = List())
+      body = a.popInstructions.reverse.toList)
     )
+    a.inFunctionDef = false
 
   /** Visits `n` with state `a`. */
   def visitParameter(n: Parameter)(using a: Context): Unit =
     a.addParameterToMap(n.identifier)
+    if n.ascription.isDefined then
+      n.ascription.get.visit(this)
 
   /** Visits `n` with state `a`. */
   def visitIdentifier(n: Identifier)(using a: Context): Unit = 
-    a.pushInstruction(Call(n.value))
+    if (a.inFunctionDef) then
+      a.getParameterNum(n.value) match
+        case Some(int) => a.pushInstruction(LocalGet(int)) // named argument
+        case None => a.pushInstruction(Call(n.value))
+    else
+      a.pushInstruction(Call(n.value))
 
   /** Visits `n` with state `a`. */
   def visitBooleanLiteral(n: BooleanLiteral)(using a: Context): Unit =
@@ -86,7 +103,7 @@ final class CodeGenerator(syntax: TypedProgram)
 
   /** Visits `n` with state `a`. */
   def visitIntegerLiteral(n: IntegerLiteral)(using a: Context): Unit =
-    a.pushInstruction(IConst(n.value.toInt))
+    a.pushInstruction(IConst(n.value.toInt)) 
 
   /** Visits `n` with state `a`. */
   def visitFloatLiteral(n: FloatLiteral)(using a: Context): Unit =
@@ -110,7 +127,8 @@ final class CodeGenerator(syntax: TypedProgram)
   def visitPrefixApplication(n: PrefixApplication)(using a: Context): Unit = ???
 
   /** Visits `n` with state `a`. */
-  def visitInfixApplication(n: InfixApplication)(using a: Context): Unit = ???
+  def visitInfixApplication(n: InfixApplication)(using a: Context): Unit =
+    ???
 
   /** Visits `n` with state `a`. */
   def visitConditional(n: Conditional)(using a: Context): Unit = ???
@@ -182,6 +200,8 @@ object CodeGenerator:
     *   The current identation to add before newlines.
     */
   final class Context(imports: List[Import]):
+    var inFunctionDef = false
+
     // list of functions (including main function)
     private var functions = ListBuffer[WasmTree.Function]()
 
@@ -193,7 +213,7 @@ object CodeGenerator:
 
     def popInstructions = instructionsStack.popAll()
 
-    private var typesStack = Stack[Option[WasmTree.WasmType]]()
+    var typesStack = Stack[Option[WasmTree.WasmType]]()
 
     def pushType(t: Option[WasmTree.WasmType]) =
       typesStack.push(t)
@@ -215,7 +235,7 @@ object CodeGenerator:
 
     /* gets the corresponding number (for example for Local.get(0)) */
     def getParameterNum(identifier: String) =
-      functionParameterMappings.get(identifier).get
+      functionParameterMappings.get(identifier)
 
     def clearFunctionParameterMappings =
       functionParameterMappings = Map[String, Int]()
