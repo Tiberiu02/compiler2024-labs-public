@@ -43,7 +43,15 @@ final class CodeGenerator(syntax: TypedProgram)
     if n.identifier == "main" then
       n.initializer.get.visit(this)
       a.addFunction(MainFunction(a.popInstructions.toList.reverse, None))
-    else n.initializer.get.visit(this)
+    else
+      a.inTopLevelValueDef = true
+      val instruction = n.initializer match
+        case Some(expr) => 
+          n.initializer.get.visit(this)
+          Some(a.popOneInstruction)
+        case _ => None
+
+      a.addTopLevelMapping(n.identifier, instruction)
 
   /** Visits `n` with state `a`. */
   def visitTypeDeclaration(n: TypeDeclaration)(using a: Context): Unit = ???
@@ -86,12 +94,17 @@ final class CodeGenerator(syntax: TypedProgram)
 
   /** Visits `n` with state `a`. */
   def visitIdentifier(n: Identifier)(using a: Context): Unit = 
-    if (a.inFunctionDef) then
+    if a.inFunctionDef then
       a.getParameterNum(n.value) match
         case Some(int) => a.pushInstruction(LocalGet(int)) // named argument
         case None => a.pushInstruction(Call(n.value))
     else
-      a.pushInstruction(Call(n.value))
+      a.getTopLevelMapping(n.value) match
+        case Some(instructionOpt) => 
+          instructionOpt match
+          case Some(instruction) => a.pushInstruction(instruction)
+          case None => ???
+        case None => a.pushInstruction(Call(n.value))
 
   /** Visits `n` with state `a`. */
   def visitBooleanLiteral(n: BooleanLiteral)(using a: Context): Unit =
@@ -247,6 +260,8 @@ object CodeGenerator:
 
     def popInstructions = instructionsStack.popAll()
 
+    def popOneInstruction = instructionsStack.pop()
+
     var typesStack = Stack[Option[WasmTree.WasmType]]()
 
     def pushType(t: Option[WasmTree.WasmType]) =
@@ -273,6 +288,18 @@ object CodeGenerator:
 
     def clearFunctionParameterMappings =
       functionParameterMappings = Map[String, Int]()
+
+    var inTopLevelValueDef = false
+    private var topLevelMappings = Map[String, Option[Instruction]]()
+
+    def addTopLevelMapping(identifier: String, value: Option[Instruction]) =
+      topLevelMappings += (identifier -> value)
+
+    def getTopLevelMapping(identifier: String) =
+      topLevelMappings.get(identifier)
+
+    def clearTopLevelMappings =
+      topLevelMappings = Map[String, Option[Instruction]]()
 
     /* returns a wasm module representing the program */
     def toModule: Module = Module(imports, functions.toList)
