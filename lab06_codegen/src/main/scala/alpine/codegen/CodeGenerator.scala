@@ -52,6 +52,7 @@ final class CodeGenerator(syntax: TypedProgram)
         case _ => None
 
       a.addTopLevelMapping(n.identifier, instruction)
+      a.inTopLevelValueDef = false
 
   /** Visits `n` with state `a`. */
   def visitTypeDeclaration(n: TypeDeclaration)(using a: Context): Unit = ???
@@ -98,12 +99,12 @@ final class CodeGenerator(syntax: TypedProgram)
       a.getParameterNum(n.value) match
         case Some(int) => a.pushInstruction(LocalGet(int)) // named argument
         case None => a.pushInstruction(Call(n.value))
-    else
+    else if !a.inTopLevelValueDef then
       a.getTopLevelMapping(n.value) match
         case Some(instructionOpt) => 
           instructionOpt match
-          case Some(instruction) => a.pushInstruction(instruction)
-          case None => ???
+            case Some(instruction) => a.pushInstruction(instruction)
+            case None => ???
         case None => a.pushInstruction(Call(n.value))
 
   /** Visits `n` with state `a`. */
@@ -178,7 +179,8 @@ final class CodeGenerator(syntax: TypedProgram)
     else ??? // error
 
   /** Visits `n` with state `a`. */
-  def visitConditional(n: Conditional)(using a: Context): Unit = ???
+  def visitConditional(n: Conditional)(using a: Context): Unit =
+    ???
 
   /** Visits `n` with state `a`. */
   def visitMatch(n: Match)(using a: Context): Unit = ???
