@@ -186,7 +186,12 @@ final class CodeGenerator(syntax: TypedProgram)
     n.failureCase.visit(this)
     val failureInstructions = a.popInstructions.toList.reverse
     n.condition.visit(this)
-    a.pushInstruction(If_i32(successInstructions, Some(failureInstructions)))
+
+    n.successCase.tpe match
+      case symbols.Type.Int =>
+        a.pushInstruction(If_i32(successInstructions, Some(failureInstructions)))
+      case _ =>
+        a.pushInstruction(If_void(successInstructions, Some(failureInstructions)))
 
   /** Visits `n` with state `a`. */
   def visitMatch(n: Match)(using a: Context): Unit = ???
