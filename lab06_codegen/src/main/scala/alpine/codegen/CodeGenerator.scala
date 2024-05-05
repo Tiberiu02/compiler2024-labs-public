@@ -190,8 +190,9 @@ final class CodeGenerator(syntax: TypedProgram)
     n.successCase.tpe match
       case symbols.Type.Int =>
         a.pushInstruction(If_i32(successInstructions, Some(failureInstructions)))
-      case _ =>
+      case symbols.Type.Unit  =>
         a.pushInstruction(If_void(successInstructions, Some(failureInstructions)))
+      case _ => ??? // error
 
   /** Visits `n` with state `a`. */
   def visitMatch(n: Match)(using a: Context): Unit = ???
