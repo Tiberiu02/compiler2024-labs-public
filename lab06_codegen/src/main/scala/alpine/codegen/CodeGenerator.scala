@@ -180,7 +180,13 @@ final class CodeGenerator(syntax: TypedProgram)
 
   /** Visits `n` with state `a`. */
   def visitConditional(n: Conditional)(using a: Context): Unit =
-    ???
+    // get all the relevant instructions
+    n.successCase.visit(this)
+    val successInstructions = a.popInstructions.toList.reverse
+    n.failureCase.visit(this)
+    val failureInstructions = a.popInstructions.toList.reverse
+    n.condition.visit(this)
+    a.pushInstruction(If_i32(successInstructions, Some(failureInstructions)))
 
   /** Visits `n` with state `a`. */
   def visitMatch(n: Match)(using a: Context): Unit = ???
