@@ -208,9 +208,8 @@ final class CodeGenerator(syntax: TypedProgram)
 
   /** Visits `n` with state `a`. */
   def visitParenthesizedExpression(n: ParenthesizedExpression)(using
-      a: Context
-  ): Unit =
-    n.inner.visit(this)
+      a: Context) =
+      n.inner.visit(this)
 
   /** Visits `n` with state `a`. */
   def visitAscribedExpression(n: AscribedExpression)(using a: Context): Unit =
